@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":xgradle-sbom-generator"))
     implementation(libs.bundles.maven.tooling)
     implementation(libs.guice)
+    implementation(libs.guava)
     runtimeOnly(libs.plexus.utils)
     runtimeOnly(libs.bundles.guice.deps)
     testImplementation(gradleTestKit())
