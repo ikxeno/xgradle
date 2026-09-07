@@ -42,13 +42,13 @@
 %_xgradleflags -Dmaven.poms.dir=%_mavenpomdir -Djava.library.dir=%_javadir
 
 # Run Gradle publication task.
-%gradle_publish %__gradle publishToMavenLocal %_xgradleflags
+%gradle_publish %__gradle publishToMavenLocal --offline %_xgradleflags
 
 # Run Gradle build task.
-%gradle_build %__gradle build %_xgradleflags
+%gradle_build %__gradle build --offline %_xgradleflags
 
 # Run Gradle check task.
-%gradle_check %__gradle check %_xgradleflags
+%gradle_check %__gradle check --offline %_xgradleflags
 
 # =========================================================
 #                        Packaging
