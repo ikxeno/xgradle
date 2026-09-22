@@ -120,7 +120,7 @@ class DependencyLoggerTests {
     void logSkippedDependenciesLogsNotFoundOnly() {
         dependencyLogger.logSkippedDependencies(Set.of("g:missing"), Set.of(), logger);
 
-        verify(logger).lifecycle(contains("Not found BOM"));
+        verify(logger).lifecycle(contains("Not installed dependencies"));
         verify(logger).lifecycle(" - {}", "g:missing");
         verifyNoMoreInteractions(logger);
     }

@@ -25,6 +25,7 @@ import org.altlinux.xgradle.interfaces.processors.BomResult;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 
@@ -121,8 +122,8 @@ final class DefaultBomProcessor implements BomProcessor {
         }
 
         gradle.allprojects(project -> project.getConfigurations().all(cfg -> {
-            List<Dependency> toRemove = cfg.getDependencies().stream()
-                    .filter(dependency -> dependency.getGroup() != null && dependency.getName() != null)
+            List<Dependency> toRemove = cfg.getDependencies().withType(ExternalModuleDependency.class).stream()
+                    .filter(dependency -> dependency.getGroup() != null)
                     .filter(dependency -> processedBoms.contains(dependency.getGroup() + ":" + dependency.getName()))
                     .collect(java.util.stream.Collectors.toList());
 

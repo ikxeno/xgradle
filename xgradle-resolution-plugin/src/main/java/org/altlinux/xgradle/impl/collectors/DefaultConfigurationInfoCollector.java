@@ -22,6 +22,7 @@ import org.altlinux.xgradle.impl.model.ConfigurationInfoSnapshot;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.invocation.Gradle;
 
 import java.util.HashSet;
@@ -87,7 +88,7 @@ final class DefaultConfigurationInfoCollector implements ConfigurationInfoCollec
     ) {
         ConfigurationInfo configurationInfo = new ConfigurationInfo(configuration);
 
-        configuration.getDependencies().stream()
+        configuration.getDependencies().withType(ExternalModuleDependency.class).stream()
                 .map(DefaultConfigurationInfoCollector::toDependencyKey)
                 .filter(dependencyKey -> dependencyKey != null)
                 .forEach(dependencyKey -> {

@@ -17,6 +17,7 @@ package org.altlinux.xgradle.impl.collectors;
 
 import org.altlinux.xgradle.interfaces.collectors.DependencyCollector;
 
+import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.invocation.Gradle;
 
 import java.util.*;
@@ -35,8 +36,8 @@ final class DefaultDependencyCollector implements DependencyCollector {
     @Override
     public Set<String> collect(Gradle gradle) {
         gradle.allprojects(project -> project.getConfigurations().all(cfg ->
-                cfg.getDependencies().stream()
-                        .filter(dependency -> dependency.getGroup() != null && dependency.getName() != null)
+                cfg.getDependencies().withType(ExternalModuleDependency.class).stream()
+                        .filter(dependency -> dependency.getGroup() != null)
                         .forEach(dependency -> {
                             String key = dependency.getGroup() + ":" + dependency.getName();
                             dependencies.add(key);

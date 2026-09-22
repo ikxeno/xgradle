@@ -64,7 +64,7 @@ public class DependencyLogger {
 
     public void logSkippedDependencies(Set<String> notFound, Set<String> skipped, Logger logger) {
         if (!notFound.isEmpty()) {
-            logger.lifecycle(yellow("Not found BOM dependencies:"));
+            logger.lifecycle(yellow("Not installed dependencies:"));
             notFound.forEach(d -> logger.lifecycle(" - {}", d));
         }
 
