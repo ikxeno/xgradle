@@ -20,6 +20,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
+import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
@@ -93,5 +95,42 @@ class PomHierarchyLoaderTests {
         assertEquals(2, hierarchy.size());
         assertEquals("parent", hierarchy.get(0).getArtifactId());
         assertEquals("child", hierarchy.get(1).getArtifactId());
+    }
+
+    @Test
+    @DisplayName("Loads the installed compat version of the parent a POM names")
+    void loadsCompatParent(@TempDir Path tempDir) throws Exception {
+        Path metadata = Files.createDirectories(tempDir.resolve("metadata"));
+        Files.writeString(tempDir.resolve("parent-2.pom"), pom("parent", "2", ""));
+        Files.writeString(tempDir.resolve("parent-1.pom"), pom("parent", "1", ""));
+        Path child = tempDir.resolve("child.pom");
+        Files.writeString(child, pom("child", "1",
+                "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"));
+        Files.writeString(metadata.resolve("parent.xml"), "<metadata><artifacts>"
+                + "<artifact><groupId>g</groupId><artifactId>parent</artifactId><extension>pom</extension>"
+                + "<version>2</version><path>" + tempDir.resolve("parent-2.pom") + "</path></artifact>"
+                + "<artifact><groupId>g</groupId><artifactId>parent</artifactId><extension>pom</extension>"
+                + "<version>1</version><path>" + tempDir.resolve("parent-1.pom") + "</path>"
+                + "<compatVersions><version>1</version></compatVersions></artifact>"
+                + "</artifacts></metadata>");
+
+        Injector injector = Guice.createInjector(new MavenModule(), new MetadataModule(), new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(Logger.class).toInstance(logger);
+                bind(PomParser.class).toInstance(mock(PomParser.class));
+            }
+        });
+        injector.getInstance(MetadataIndex.class).build(List.of(metadata));
+
+        List<Model> hierarchy = injector.getInstance(PomHierarchyLoader.class).loadHierarchy(child);
+
+        assertEquals("1", hierarchy.get(0).getVersion());
+    }
+
+    private static String pom(String artifactId, String version, String parent) {
+        return "<project><modelVersion>4.0.0</modelVersion>" + parent
+                + "<groupId>g</groupId><artifactId>" + artifactId + "</artifactId>"
+                + "<version>" + version + "</version></project>";
     }
 }

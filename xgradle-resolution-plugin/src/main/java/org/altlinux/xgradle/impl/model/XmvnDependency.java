@@ -59,11 +59,13 @@ public final class XmvnDependency {
     }
 
     /**
-     * Key XMvn uses to look this dependency up: the resolved version, which is
-     * {@link ArtifactKey#SYSTEM_VERSION} unless the build picked a compat version.
+     * Key XMvn uses to look this dependency up: its effective POM carries the
+     * requested version, which the resolver matches against compat versions
+     * before falling back to {@link ArtifactKey#SYSTEM_VERSION}. The resolved
+     * version only records what the dependency resolved to at install time.
      */
     public ArtifactKey toKey() {
-        return new ArtifactKey(groupId, artifactId, extension, classifier, resolvedVersion);
+        return new ArtifactKey(groupId, artifactId, extension, classifier, requestedVersion);
     }
 
     public String getGroupId() {

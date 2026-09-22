@@ -177,6 +177,26 @@ class IvyRepositoryGeneratorTests {
     }
 
     @Test
+    @DisplayName("resolves a dependency by its requested version, like XMvn")
+    void dependencyUsesRequestedVersion(@TempDir Path metadata) throws IOException {
+        Files.writeString(metadata.resolve("lib.xml"), metadataFile(
+                artifact("g", "lib", "2.0", temp.resolve("lib.jar"), "")
+                        + artifact("g", "lib", "1.0", temp.resolve("lib1.jar"), "",
+                        "<compatVersions><version>1.0</version></compatVersions>")));
+        Files.writeString(metadata.resolve("app.xml"), metadataFile(
+                artifact("g", "app", "1", temp.resolve("app.jar"),
+                        dependency("g", "lib", "1.0", false) + dependency("g", "other-lib", "9", false))
+                        + artifact("g", "other-lib", "3", temp.resolve("other.jar"), "")));
+        index.build(List.of(metadata));
+
+        Path root = generator.generate(temp.resolve("cache")).getRoot();
+        String descriptor = Files.readString(root.resolve("g/app/1/ivy.xml"));
+
+        assertTrue(descriptor.contains("name=\"lib\" rev=\"1.0\""), "the compat version is picked: " + descriptor);
+        assertTrue(descriptor.contains("name=\"other-lib\" rev=\"3\""), "no compat version falls back: " + descriptor);
+    }
+
+    @Test
     @DisplayName("reuses the repository for unchanged metadata")
     void reusesRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
