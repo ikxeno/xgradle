@@ -31,9 +31,8 @@ import org.gradle.api.logging.Logger;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -86,7 +85,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     private IvyRepository generateUncached(Path cacheDirectory) {
         Path root = cacheDirectory.resolve(fingerprint());
         try {
-            if (!Files.isRegularFile(root.resolve(COMPLETE_MARKER))) {
+            if (!isComplete(root)) {
                 write(cacheDirectory, root);
             }
             return new IvyRepository(root, Files.readAllLines(root.resolve(MISSING_FILE)));
@@ -98,23 +97,66 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     private void write(Path cacheDirectory, Path root) throws IOException {
         Files.createDirectories(cacheDirectory);
         Path tmp = Files.createTempDirectory(cacheDirectory, root.getFileName() + ".");
+        try {
+            Map<String, Module> modules = modules();
+            modules.values().forEach(module -> writeModule(tmp, module));
+            List<String> missing = modules.values().stream()
+                    .flatMap(module -> missingDependencies(module).stream())
+                    .sorted()
+                    .collect(Collectors.toList());
+            Files.write(tmp.resolve(MISSING_FILE), missing);
+            Files.createFile(tmp.resolve(COMPLETE_MARKER));
 
-        Map<String, Module> modules = modules();
-        modules.values().forEach(module -> writeModule(tmp, module));
-        List<String> missing = modules.values().stream()
-                .flatMap(module -> missingDependencies(module).stream())
-                .sorted()
-                .collect(Collectors.toList());
-        Files.write(tmp.resolve(MISSING_FILE), missing);
-        Files.createFile(tmp.resolve(COMPLETE_MARKER));
+            moveIntoPlace(tmp, root);
+            logger.info("Generated system ivy repository with {} modules in {}", modules.size(), root);
+        } finally {
+            if (Files.exists(tmp)) {
+                deleteRecursively(tmp);
+            }
+        }
+    }
 
+    /**
+     * Renames the written repository to its final name. Another build may have
+     * renamed its copy first; depending on the platform the rename then fails with
+     * {@code FileAlreadyExistsException}, {@code DirectoryNotEmptyException} or a
+     * plain {@code FileSystemException}, so the outcome is judged by the marker.
+     * A directory without the marker is a leftover and is replaced.
+     */
+    private void moveIntoPlace(Path tmp, Path root) throws IOException {
         try {
             Files.move(tmp, root, StandardCopyOption.ATOMIC_MOVE);
-            logger.info("Generated system ivy repository with {} modules in {}", modules.size(), root);
-        } catch (FileAlreadyExistsException | DirectoryNotEmptyException e) {
-            logger.info("System ivy repository {} was generated concurrently", root);
-            deleteRecursively(tmp);
+        } catch (IOException e) {
+            if (isComplete(root)) {
+                logger.info("System ivy repository {} was generated concurrently", root);
+                return;
+            }
+            logger.warn("Replacing incomplete system ivy repository {}", root);
+            discard(root);
+            try {
+                Files.move(tmp, root, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException again) {
+                if (!isComplete(root)) {
+                    again.addSuppressed(e);
+                    throw again;
+                }
+            }
         }
+    }
+
+    private static boolean isComplete(Path root) {
+        return Files.isRegularFile(root.resolve(COMPLETE_MARKER));
+    }
+
+    /** Renames a directory out of the way before deleting it, so no one sees it half deleted. */
+    private static void discard(Path dir) throws IOException {
+        Path trash = Files.createTempDirectory(dir.getParent(), dir.getFileName() + ".old.");
+        try {
+            Files.move(dir, trash.resolve("content"), StandardCopyOption.ATOMIC_MOVE);
+        } catch (NoSuchFileException e) {
+            // Discarded by another build already.
+        }
+        deleteRecursively(trash);
     }
 
     /**

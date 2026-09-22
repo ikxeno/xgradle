@@ -171,6 +171,27 @@ class IvyRepositoryGeneratorTests {
         assertTrue(Files.exists(second.resolve("marker")));
     }
 
+    @Test
+    @DisplayName("replaces a leftover repository directory without the complete marker")
+    void replacesIncompleteRepository(@TempDir Path metadata) throws IOException {
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        index.build(List.of(metadata));
+        Path root = generator.generate(temp.resolve("cache")).getRoot();
+        Files.delete(root.resolve(".complete"));
+        Files.writeString(root.resolve("junk"), "left by a crashed build");
+
+        setUp();
+        index.build(List.of(metadata));
+        Path regenerated = generator.generate(temp.resolve("cache")).getRoot();
+
+        assertEquals(root, regenerated);
+        assertTrue(Files.isRegularFile(regenerated.resolve(".complete")));
+        assertFalse(Files.exists(regenerated.resolve("junk")));
+        try (java.util.stream.Stream<Path> entries = Files.list(temp.resolve("cache"))) {
+            assertEquals(List.of(root), entries.collect(Collectors.toList()), "no temporary directory is left");
+        }
+    }
+
     private Set<String> resolve(IvyRepository repository, String... notations) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         addRepository(project, repository);
