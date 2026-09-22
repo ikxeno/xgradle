@@ -125,6 +125,7 @@ public class E2ETests {
                         "-Dmaven.metadata.dir=" + metadata.getParent(),
                         "-Dmaven.poms.dir=" + testLibAbsolutePath,
                         "-Djava.library.dir=" + testLibAbsolutePath,
+                        "-Dgenerate.sbom=cyclonedx",
                         "--offline"
                 )
                 .forwardOutput()
@@ -136,6 +137,8 @@ public class E2ETests {
                 .getOutcome());
         assertTrue(generatedIvyModule(gradleUserHome, "commons-cli/commons-cli/1.11.0"),
                 "dependencies must be resolved through the ivy repository generated from XMvn metadata");
+        assertTrue(Files.isRegularFile(testProjectDir.toPath().resolve("build/reports/xgradle/sbom-cyclonedx.json")),
+                "the SBOM must be written when the build ends");
     }
 
     private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {

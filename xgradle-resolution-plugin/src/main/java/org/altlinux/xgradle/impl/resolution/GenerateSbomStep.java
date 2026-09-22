@@ -46,6 +46,7 @@ import java.util.Optional;
 @Order(1200)
 final class GenerateSbomStep implements ResolutionStep {
 
+    private static final String BUILD_END_SERVICE = "xgradleSbomAtBuildEnd";
     private static final String GENERATE_SBOM_KEY = "generate.sbom";
 
     private final SbomGenerationService sbomGenerationService;
@@ -89,13 +90,16 @@ final class GenerateSbomStep implements ResolutionStep {
         Collection<MavenCoordinate> pluginArtifactsSnapshot =
                 snapshotPluginArtifacts();
 
-        gradle.buildFinished(result -> sbomGenerationService.generate(
-                gradle,
-                sbomFormat,
-                artifactsSnapshot,
-                pluginArtifactsSnapshot,
-                logger
-        ));
+        gradle.getSharedServices()
+                .registerIfAbsent(BUILD_END_SERVICE, BuildEndAction.class, spec -> { })
+                .get()
+                .setAction(() -> sbomGenerationService.generate(
+                        gradle,
+                        sbomFormat,
+                        artifactsSnapshot,
+                        pluginArtifactsSnapshot,
+                        logger
+                ));
     }
 
     private Collection<MavenCoordinate> snapshotPluginArtifacts() {

@@ -19,7 +19,9 @@ import org.altlinux.xgradle.impl.enums.SbomFormat;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.services.SbomGenerationService;
-import org.gradle.api.Action;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.services.BuildServiceParameters;
+import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.Project;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
@@ -35,9 +37,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,12 +93,18 @@ class GenerateSbomStepTests {
         when(rootProject.getLogger()).thenReturn(logger);
         when(pluginProcessor.getResolvedPluginArtifacts()).thenReturn(List.of(pluginArtifact));
 
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<Object> callback = invocation.getArgument(0);
-            callback.execute(null);
-            return null;
-        }).when(gradle).buildFinished(any(Action.class));
+        BuildEndAction buildEnd = new BuildEndAction() {
+            @Override
+            public BuildServiceParameters.None getParameters() {
+                return null;
+            }
+        };
+        BuildServiceRegistry sharedServices = mock(BuildServiceRegistry.class);
+        @SuppressWarnings("unchecked")
+        Provider<BuildEndAction> provider = mock(Provider.class);
+        when(gradle.getSharedServices()).thenReturn(sharedServices);
+        when(sharedServices.registerIfAbsent(anyString(), eq(BuildEndAction.class), any())).thenReturn(provider);
+        when(provider.get()).thenReturn(buildEnd);
 
         ResolutionContext resolutionContext = new ResolutionContext(gradle);
         resolutionContext.putSystemArtifact("org.example:core-lib", dependency);
@@ -104,6 +114,8 @@ class GenerateSbomStepTests {
                 pluginProcessor
         );
         step.execute(resolutionContext);
+        verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any());
+        buildEnd.close();
 
         verify(sbomGenerationService).generate(
                 eq(gradle),
