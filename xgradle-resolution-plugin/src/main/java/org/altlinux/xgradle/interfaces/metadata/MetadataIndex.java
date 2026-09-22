@@ -20,6 +20,7 @@ import org.altlinux.xgradle.impl.model.XmvnArtifact;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -45,4 +46,9 @@ public interface MetadataIndex {
      * All installed artifacts, in metadata read order.
      */
     List<XmvnArtifact> artifacts();
+
+    /**
+     * Every lookup key with the artifact that won it, in index order.
+     */
+    Map<ArtifactKey, XmvnArtifact> entries();
 }

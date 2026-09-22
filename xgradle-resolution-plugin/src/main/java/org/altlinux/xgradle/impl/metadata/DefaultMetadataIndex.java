@@ -26,6 +26,7 @@ import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 import org.gradle.api.logging.Logger;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +60,7 @@ final class DefaultMetadataIndex implements MetadataIndex {
         read.forEach(artifact -> artifact.lookupKeys().forEach(key -> put(index, key, artifact)));
 
         artifacts = List.copyOf(read);
-        byKey = index;
+        byKey = Collections.unmodifiableMap(index);
         logger.info("Indexed {} artifacts from XMvn metadata in {}", artifacts.size(), locations);
     }
 
@@ -88,5 +89,10 @@ final class DefaultMetadataIndex implements MetadataIndex {
     @Override
     public List<XmvnArtifact> artifacts() {
         return artifacts;
+    }
+
+    @Override
+    public Map<ArtifactKey, XmvnArtifact> entries() {
+        return byKey;
     }
 }

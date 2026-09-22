@@ -17,6 +17,7 @@ package org.altlinux.xgradle.impl.metadata;
 
 import com.google.inject.AbstractModule;
 
+import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 
@@ -31,5 +32,6 @@ public final class MetadataModule extends AbstractModule {
     protected void configure() {
         bind(MetadataReader.class).to(DefaultMetadataReader.class);
         bind(MetadataIndex.class).to(DefaultMetadataIndex.class);
+        bind(IvyRepositoryGenerator.class).to(DefaultIvyRepositoryGenerator.class);
     }
 }
