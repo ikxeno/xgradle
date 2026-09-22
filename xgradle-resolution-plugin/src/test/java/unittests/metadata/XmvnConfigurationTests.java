@@ -47,7 +47,8 @@ class XmvnConfigurationTests {
     @Test
     @DisplayName("reads ALT's metadata repositories and XMvn's default for duplicates")
     void readsAltConfiguration() throws IOException {
-        XmvnConfiguration xmvn = XmvnConfiguration.load(temp.resolve("project"), altEnvironment(), temp.resolve("home"));
+        XmvnConfiguration xmvn = XmvnConfiguration.load(
+                temp.resolve("project"), altEnvironment(), temp.resolve("home"), false);
 
         assertEquals(List.of(Path.of("/usr/share/maven-metadata"),
                         Path.of("/usr/share/javapackages-bootstrap/maven-metadata")),
@@ -66,11 +67,39 @@ class XmvnConfigurationTests {
                         + "<ignoreDuplicateMetadata>false</ignoreDuplicateMetadata>"
                         + "</resolverSettings></configuration>");
 
-        XmvnConfiguration xmvn = XmvnConfiguration.load(project, altEnvironment(), temp.resolve("home"));
+        XmvnConfiguration xmvn = XmvnConfiguration.load(project, altEnvironment(), temp.resolve("home"), false);
 
         assertEquals(Path.of("/opt/metadata"), xmvn.getMetadataRepositories().get(0));
         assertEquals(3, xmvn.getMetadataRepositories().size());
         assertFalse(xmvn.isIgnoreDuplicateMetadata());
+    }
+
+    @Test
+    @DisplayName("treats empty XDG variables as unset and prefers $HOME to user.home")
+    void emptyVariablesAndHome() throws IOException {
+        Path userConfig = Files.createDirectories(temp.resolve("real-home/.config/xmvn"));
+        Files.writeString(userConfig.resolve("configuration.xml"),
+                "<configuration><resolverSettings><metadataRepositories>"
+                        + "<repository>/home/metadata</repository></metadataRepositories>"
+                        + "</resolverSettings></configuration>");
+        Map<String, String> env = Map.of(
+                "HOME", temp.resolve("real-home").toString(),
+                "XDG_CONFIG_HOME", "",
+                "XDG_DATA_DIRS", temp.resolve("share").toString(),
+                "XDG_CONFIG_DIRS", "");
+
+        XmvnConfiguration xmvn = XmvnConfiguration.load(temp.resolve("project"), env, temp.resolve("home"), false);
+
+        assertEquals(List.of(Path.of("/home/metadata")), xmvn.getMetadataRepositories());
+    }
+
+    @Test
+    @DisplayName("reads only the project configuration in XMvn's sandbox mode")
+    void sandboxReadsOnlyProject() throws IOException {
+        XmvnConfiguration xmvn = XmvnConfiguration.load(
+                temp.resolve("project"), altEnvironment(), temp.resolve("home"), true);
+
+        assertEquals(List.of(), xmvn.getMetadataRepositories());
     }
 
     private Map<String, String> altEnvironment() throws IOException {

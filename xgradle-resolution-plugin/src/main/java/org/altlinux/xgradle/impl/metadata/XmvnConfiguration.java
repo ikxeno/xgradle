@@ -65,11 +65,16 @@ public final class XmvnConfiguration {
      * Loads the configuration visible to XMvn started in {@code currentDir}.
      */
     public static XmvnConfiguration load(Path currentDir) {
-        return load(currentDir, System.getenv(), Path.of(System.getProperty("user.home")));
+        return load(currentDir, System.getenv(), Path.of(System.getProperty("user.home")),
+                System.getProperty("xmvn.config.sandbox") != null);
     }
 
-    public static XmvnConfiguration load(Path currentDir, Map<String, String> env, Path home) {
-        List<Element> settings = configFiles(currentDir, env, home)
+    /**
+     * @param userHome the home directory when {@code $HOME} is unset or empty
+     * @param sandbox  XMvn's {@code xmvn.config.sandbox}: read only the project's {@code .xmvn/}
+     */
+    public static XmvnConfiguration load(Path currentDir, Map<String, String> env, Path userHome, boolean sandbox) {
+        List<Element> settings = configFiles(currentDir, env, userHome, sandbox)
                 .map(XmvnConfiguration::resolverSettings)
                 .flatMap(Optional::stream)
                 .collect(Collectors.toList());
@@ -103,17 +108,21 @@ public final class XmvnConfiguration {
     /**
      * Configuration files from the most to the least specific, as XMvn lists them.
      */
-    private static Stream<Path> configFiles(Path currentDir, Map<String, String> env, Path home) {
+    private static Stream<Path> configFiles(Path currentDir, Map<String, String> env, Path userHome, boolean sandbox) {
         Path reactor = currentDir.resolve(".xmvn");
         Stream<Path> reactorFiles = Stream.concat(
                 sortedFiles(reactor.resolve("config.d")),
                 Stream.of(reactor.resolve("configuration.xml")));
+        if (sandbox) {
+            return reactorFiles.filter(Files::isRegularFile);
+        }
 
+        Path home = Path.of(envOrDefault(env, "HOME", userHome.toString()));
         Stream<String> xdgBases = Stream.of(
-                        Stream.of(env.getOrDefault("XDG_CONFIG_HOME", home.resolve(".config").toString())),
-                        Stream.of(env.getOrDefault("XDG_DATA_HOME", home.resolve(".local/share").toString())),
-                        Arrays.stream(env.getOrDefault("XDG_CONFIG_DIRS", "/etc/xdg").split(":+")),
-                        Arrays.stream(env.getOrDefault("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":+")))
+                        Stream.of(envOrDefault(env, "XDG_CONFIG_HOME", home.resolve(".config").toString())),
+                        Stream.of(envOrDefault(env, "XDG_DATA_HOME", home.resolve(".local/share").toString())),
+                        Arrays.stream(envOrDefault(env, "XDG_CONFIG_DIRS", "/etc/xdg").split(":+")),
+                        Arrays.stream(envOrDefault(env, "XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":+")))
                 .flatMap(bases -> bases);
         Stream<Path> xdgFiles = xdgBases
                 .filter(base -> !base.isEmpty())
@@ -125,6 +134,12 @@ public final class XmvnConfiguration {
                         Stream.of(base.resolve("configuration.xml"))));
 
         return Stream.concat(reactorFiles, xdgFiles).filter(Files::isRegularFile);
+    }
+
+    /** Like XMvn, an empty variable counts as unset. */
+    private static String envOrDefault(Map<String, String> env, String name, String defaultValue) {
+        String value = env.get(name);
+        return value == null || value.isEmpty() ? defaultValue : value;
     }
 
     private static Stream<Path> sortedFiles(Path directory) {

@@ -108,14 +108,14 @@ class SystemDepsExtensionTests {
                         + "</metadataRepositories></resolverSettings></configuration>");
         XmvnConfiguration xmvn = XmvnConfiguration.load(tempDir.resolve("project"),
                 Map.of("XDG_DATA_DIRS", tempDir.resolve("share").toString(), "XDG_CONFIG_DIRS", "/nonexistent"),
-                tempDir);
+                tempDir, false);
 
         assertEquals(List.of(metadata), SystemDepsExtension.getMetadataPaths(xmvn));
     }
 
     private XmvnConfiguration noXmvn() {
         return XmvnConfiguration.load(tempDir.resolve("project"),
-                Map.of("XDG_DATA_DIRS", "/nonexistent", "XDG_CONFIG_DIRS", "/nonexistent"), tempDir);
+                Map.of("XDG_DATA_DIRS", "/nonexistent", "XDG_CONFIG_DIRS", "/nonexistent"), tempDir, false);
     }
 
     private void writeConfig(String content) throws Exception {
