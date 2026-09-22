@@ -15,6 +15,7 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
+import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 import org.gradle.api.invocation.Gradle;
 import org.junit.jupiter.api.DisplayName;
@@ -24,9 +25,11 @@ import org.mockito.Mock;
 import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 /**
@@ -58,5 +61,58 @@ class DefaultResolutionPipelineTests {
         InOrder order = inOrder(step1, step2);
         order.verify(step1).execute(context);
         order.verify(step2).execute(context);
+    }
+
+    @Test
+    @DisplayName("Runs steps by their @Order, unannotated ones last")
+    void runsStepsByOrder() {
+        List<String> ran = new ArrayList<>();
+        DefaultResolutionPipeline pipeline = new DefaultResolutionPipeline(new LinkedHashSet<>(List.of(
+                new Unordered(ran), new Late(ran), new Early(ran))));
+
+        pipeline.run(new ResolutionContext(gradle));
+
+        assertEquals(List.of("early", "late", "unordered"), ran);
+    }
+
+    private abstract static class RecordingStep implements ResolutionStep {
+
+        private final List<String> ran;
+        private final String name;
+
+        RecordingStep(List<String> ran, String name) {
+            this.ran = ran;
+            this.name = name;
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public void execute(ResolutionContext ctx) {
+            ran.add(name);
+        }
+    }
+
+    @Order(10)
+    private static final class Early extends RecordingStep {
+        Early(List<String> ran) {
+            super(ran, "early");
+        }
+    }
+
+    @Order(20)
+    private static final class Late extends RecordingStep {
+        Late(List<String> ran) {
+            super(ran, "late");
+        }
+    }
+
+    private static final class Unordered extends RecordingStep {
+        Unordered(List<String> ran) {
+            super(ran, "unordered");
+        }
     }
 }
