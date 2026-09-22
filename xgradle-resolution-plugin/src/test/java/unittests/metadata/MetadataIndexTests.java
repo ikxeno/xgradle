@@ -47,8 +47,8 @@ import java.util.zip.GZIPOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -200,14 +200,18 @@ class MetadataIndexTests {
     }
 
     @Test
-    @DisplayName("fails on a broken file instead of skipping it")
-    void failsOnBrokenFile(@TempDir Path dir) throws IOException {
+    @DisplayName("skips a broken file with a warning and keeps the others")
+    void skipsBrokenFile(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
         Files.writeString(dir.resolve("broken.xml"), "<metadata><artifacts><artifact>");
+        Files.writeString(dir.resolve("incomplete.xml"),
+                "<metadata><artifacts><artifact><groupId>g</groupId></artifact></artifacts></metadata>");
 
-        GradleException e = assertThrows(GradleException.class, () -> index.build(List.of(dir)));
+        index.build(List.of(dir));
 
-        assertTrue(e.getMessage().contains("broken.xml"));
-        verify(logger, never()).info(anyString(), any(Object.class), any(Object.class));
+        assertEquals(1, index.artifacts().size());
+        verify(logger).warn(anyString(), eq(dir.resolve("broken.xml")), anyString());
+        verify(logger).warn(anyString(), eq(dir.resolve("incomplete.xml")), anyString());
     }
 
     private static String metadata(String path) {

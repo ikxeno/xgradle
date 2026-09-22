@@ -15,12 +15,15 @@
  */
 package org.altlinux.xgradle.impl.metadata;
 
+import com.google.inject.Inject;
+
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 
 import org.gradle.api.GradleException;
+import org.gradle.api.logging.Logger;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -47,13 +50,19 @@ import java.util.zip.GZIPInputStream;
 
 /**
  * Reads XMvn metadata files, following the XMvn reader: files in a directory
- * are read in name order and may be gzip-compressed. Unlike XMvn, a file that
- * cannot be read fails the build instead of being skipped, since a skipped file
- * silently changes the resolved classpath.
+ * are read in name order and may be gzip-compressed, and a file that cannot be
+ * read is skipped with a warning, so one broken package does not break every build.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 final class DefaultMetadataReader implements MetadataReader {
+
+    private final Logger logger;
+
+    @Inject
+    DefaultMetadataReader(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<XmvnArtifact> read(List<Path> locations) {
@@ -81,27 +90,32 @@ final class DefaultMetadataReader implements MetadataReader {
         }
     }
 
-    private static List<XmvnArtifact> readFile(Path file) {
-        Document document;
+    private List<XmvnArtifact> readFile(Path file) {
         try (InputStream in = open(file)) {
-            document = newDocumentBuilder().parse(in);
-        } catch (IOException | SAXException e) {
-            throw new GradleException("Cannot read XMvn metadata file " + file + ": " + e.getMessage(), e);
+            Document document = newDocumentBuilder().parse(in);
+            return children(child(document.getDocumentElement(), "artifacts"), "artifact")
+                    .map(artifact -> parseArtifact(artifact, file))
+                    .collect(Collectors.toList());
+        } catch (IOException | SAXException | InvalidMetadataException e) {
+            logger.warn("Skipping XMvn metadata file {}: {}", file, e.getMessage());
+            return List.of();
         }
-
-        return children(child(document.getDocumentElement(), "artifacts"), "artifact")
-                .map(artifact -> parseArtifact(artifact, file))
-                .collect(Collectors.toList());
     }
 
+    /** Opens the file, unpacking it if it starts with the gzip magic; closes it if that fails. */
     private static InputStream open(Path file) throws IOException {
         BufferedInputStream in = new BufferedInputStream(Files.newInputStream(file));
-        in.mark(2);
-        int b1 = in.read();
-        int b2 = in.read();
-        in.reset();
-        boolean gzip = b1 == (GZIPInputStream.GZIP_MAGIC & 0xff) && b2 == (GZIPInputStream.GZIP_MAGIC >> 8);
-        return gzip ? new GZIPInputStream(in) : in;
+        try {
+            in.mark(2);
+            int b1 = in.read();
+            int b2 = in.read();
+            in.reset();
+            boolean gzip = b1 == (GZIPInputStream.GZIP_MAGIC & 0xff) && b2 == (GZIPInputStream.GZIP_MAGIC >> 8);
+            return gzip ? new GZIPInputStream(in) : in;
+        } catch (IOException e) {
+            in.close();
+            throw e;
+        }
     }
 
     private static DocumentBuilder newDocumentBuilder() {
@@ -182,8 +196,7 @@ final class DefaultMetadataReader implements MetadataReader {
     private static String required(Element e, String name, Path file) {
         String value = text(e, name);
         if (value == null || value.isEmpty()) {
-            throw new GradleException("XMvn metadata file " + file + " has an <" + e.getLocalName()
-                    + "> without <" + name + ">");
+            throw new InvalidMetadataException("<" + e.getLocalName() + "> without <" + name + ">");
         }
         return value;
     }
@@ -212,5 +225,12 @@ final class DefaultMetadataReader implements MetadataReader {
                 .filter(n -> n.getNodeType() == Node.ELEMENT_NODE)
                 .filter(n -> name == null || name.equals(n.getLocalName()))
                 .map(Element.class::cast);
+    }
+
+    private static final class InvalidMetadataException extends RuntimeException {
+
+        private InvalidMetadataException(String message) {
+            super(message);
+        }
     }
 }
