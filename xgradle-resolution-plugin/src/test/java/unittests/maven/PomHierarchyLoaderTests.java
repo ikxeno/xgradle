@@ -24,6 +24,7 @@ import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
 import org.gradle.api.logging.Logger;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -36,6 +37,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 /**
  * @author Ivan Khanas xeno@altlinux.org
  */
@@ -79,6 +81,7 @@ class PomHierarchyLoaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
+                        bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
                         bind(PomFinder.class).toInstance(pomFinder);
                     }
                 })

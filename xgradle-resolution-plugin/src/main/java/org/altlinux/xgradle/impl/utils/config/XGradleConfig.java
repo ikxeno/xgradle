@@ -15,6 +15,8 @@
  */
 package org.altlinux.xgradle.impl.utils.config;
 
+import org.gradle.api.GradleException;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -128,7 +130,8 @@ public final class XGradleConfig {
         }
         try (BufferedReader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
             PROPERTIES.load(reader);
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            throw new GradleException("Cannot read xgradle config " + configPath + ": " + e.getMessage(), e);
         }
     }
 

@@ -28,6 +28,7 @@ import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.logging.Logger;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.mock;
 
 /**
  * @author Ivan Khanas <xeno@altlinux.org>
@@ -98,6 +100,7 @@ class PomMetadataReaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
+                        bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
                         bind(VersionScanner.class).toInstance(versionScanner);
                         bind(PomFinder.class).toInstance(pomFinder);
                     }

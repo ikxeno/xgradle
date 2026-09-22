@@ -16,12 +16,17 @@
 package org.altlinux.xgradle.impl.maven;
 
 import com.google.inject.Inject;
+import org.altlinux.xgradle.impl.model.ArtifactKey;
+import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
 import org.apache.maven.model.io.DefaultModelReader;
+import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -42,10 +48,12 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
     private final Map<String, Model> modelCache = new ConcurrentHashMap<>();
     private final DefaultModelReader modelReader = new DefaultModelReader();
 
+    private final MetadataIndex index;
     private final Logger logger;
 
     @Inject
-    MavenPomHierarchyLoader(Logger logger) {
+    MavenPomHierarchyLoader(MetadataIndex index, Logger logger) {
+        this.index = index;
         this.logger = logger;
     }
 
@@ -58,17 +66,17 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
 
         while (currentPath != null && depth < MAX_DEPTH) {
             Model model = loadModel(currentPath);
-            if (model == null) {
-                break;
-            }
-
             stack.push(model);
             Parent parent = model.getParent();
             if (parent == null) {
                 break;
             }
 
-            currentPath = resolveParentPath(currentPath, parent);
+            currentPath = resolveParentPath(currentPath, parent).orElse(null);
+            if (currentPath == null) {
+                logger.warn("Parent POM {}:{}:{} of {} is not installed; inherited properties and managed versions are missing",
+                        parent.getGroupId(), parent.getArtifactId(), parent.getVersion(), pomPath);
+            }
             depth++;
         }
         return new ArrayList<>(stack);
@@ -78,14 +86,22 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
         return modelCache.computeIfAbsent(pomPath.toString(), cacheKey -> {
             try (InputStream inputStream = Files.newInputStream(pomPath)) {
                 return modelReader.read(inputStream, null);
-            } catch (Exception exception) {
-                logger.debug("Failed to load POM: {}", pomPath, exception);
-                return null;
+            } catch (IOException exception) {
+                throw new GradleException("Cannot read POM " + pomPath + ": " + exception.getMessage(), exception);
             }
         });
     }
 
-    private Path resolveParentPath(Path childPath, Parent parent) {
-        return childPath.getParent().resolve(parent.getArtifactId() + ".pom");
+    /**
+     * Parent POM path from the XMvn metadata, falling back to a sibling file named
+     * after the parent artifactId for POMs that are not described by metadata.
+     */
+    private Optional<Path> resolveParentPath(Path childPath, Parent parent) {
+        ArtifactKey key = new ArtifactKey(
+                parent.getGroupId(), parent.getArtifactId(), "pom", "", ArtifactKey.SYSTEM_VERSION);
+        return index.resolve(key)
+                .map(XmvnArtifact::getPath)
+                .or(() -> Optional.of(childPath.resolveSibling(parent.getArtifactId() + ".pom"))
+                        .filter(Files::isRegularFile));
     }
 }

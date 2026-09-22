@@ -62,8 +62,8 @@ final class CollectResolvedJarsStep implements ResolutionStep {
                                         .filter(file -> file != null && file.isFile() && isJar(file))
                                         .forEach(resolvedJars::add);
                             } catch (RuntimeException exception) {
-                                project.getLogger().debug(
-                                        "Failed to collect resolved jars for '{}': {}",
+                                project.getLogger().warn(
+                                        "SBOM may be incomplete: cannot collect resolved jars of '{}': {}",
                                         configuration.getName(),
                                         exception.getMessage()
                                 );
