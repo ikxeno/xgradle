@@ -51,6 +51,7 @@ public final class ResolutionModule extends AbstractModule {
         steps.addBinding().to(CollectConfigurationMetadataStep.class);
         steps.addBinding().to(ApplyBomsStep.class);
         steps.addBinding().to(ResolveSystemArtifactsStep.class);
+        steps.addBinding().to(FindMissingTransitivesStep.class);
         steps.addBinding().to(ApplySubstitutionStep.class);
         steps.addBinding().to(CollectResolvedJarsStep.class);
         steps.addBinding().to(GenerateSbomStep.class);
