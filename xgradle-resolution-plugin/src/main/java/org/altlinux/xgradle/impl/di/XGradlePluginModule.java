@@ -22,6 +22,7 @@ import org.altlinux.xgradle.impl.collectors.CollectorsModule;
 import org.altlinux.xgradle.impl.configurators.ConfiguratorsModule;
 import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.impl.indexing.IndexingModule;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
@@ -49,6 +50,7 @@ public final class XGradlePluginModule extends AbstractModule {
         install(new ParsersModule());
 
         install(new IndexingModule());
+        install(new MetadataModule());
 
         install(new ResolversModule());
 
