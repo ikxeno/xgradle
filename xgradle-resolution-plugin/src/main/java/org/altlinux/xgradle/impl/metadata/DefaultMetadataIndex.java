@@ -36,7 +36,8 @@ import java.util.Set;
 
 /**
  * Artifact index with the semantics of XMvn's {@code DefaultMetadataResult}
- * (duplicates are kept, as with XMvn's default {@code ignoreDuplicateMetadata=false}).
+ * (by default a key two artifacts claim is dropped, as with XMvn's default
+ * {@code ignoreDuplicateMetadata=true}).
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
