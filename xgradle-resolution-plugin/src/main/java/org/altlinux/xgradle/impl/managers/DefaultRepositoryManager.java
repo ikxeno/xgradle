@@ -31,7 +31,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -45,6 +44,7 @@ final class DefaultRepositoryManager implements RepositoryManager {
 
     private static final String SCAN_DEPTH_KEY = "xgradle.scan.depth";
     private static final int DEFAULT_SCAN_DEPTH = 3;
+    private static final String DEPENDENCIES_REPO_NAME = "SystemDepsRepo";
 
     private final Logger logger;
 
@@ -70,8 +70,8 @@ final class DefaultRepositoryManager implements RepositoryManager {
     public void configureDependenciesRepository(RepositoryHandler repos, List<File> baseDirs) {
         List<File> validDirs = requireValidDirectories(baseDirs);
 
-        String repoName = "SystemDepsRepo" + UUID.randomUUID();
-        FlatDirectoryArtifactRepository flatRepo = createFlatRepository(repos, repoName, validDirs);
+        FlatDirectoryArtifactRepository flatRepo =
+                createFlatRepository(repos, DEPENDENCIES_REPO_NAME, validDirs);
 
         repos.remove(flatRepo);
         repos.addFirst(flatRepo);
