@@ -54,14 +54,6 @@ gradlePlugin{
     }
 }
 
-tasks.named<Copy>("processResources") {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    from("main/resources/META-INF/gradle-plugins") {
-        include("${project.group}.properties")
-    }
-}
-
 tasks.register<Copy>("copyInitScript") {
     dependsOn("processResources")
     from("src/main/resources/$initScriptName")

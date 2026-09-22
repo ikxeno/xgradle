@@ -27,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Map;
 import java.util.Set;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -86,26 +85,7 @@ class DependencyLoggerTests {
         verify(logger).info(" - {}", "g:a");
     }
 
-    @Test
-    @DisplayName("logTestContextDependencies logs count and each test dep")
-    void logTestContextDependenciesLogsCountAndEach() {
-        dependencyLogger.logTestContextDependencies(Set.of("g:test"), logger);
 
-        verify(logger).lifecycle("Test context dependencies: {}", 1);
-        verify(logger).info(" - {}", "g:test");
-    }
-
-    @Test
-    @DisplayName("logConfigurationArtifacts logs each configuration with its artifacts")
-    void logConfigurationArtifactsLogsEach() {
-        dependencyLogger.logConfigurationArtifacts(
-                Map.of("runtimeClasspath", Set.of("g:a:1.0")),
-                logger
-        );
-
-        verify(logger).lifecycle(any(), contains("runtimeClasspath"), eq(1));
-        verify(logger).lifecycle(" - {}", "g:a:1.0");
-    }
 
     @Test
     @DisplayName("logSkippedDependencies skips both logs when collections are empty")
@@ -136,30 +116,21 @@ class DependencyLoggerTests {
     }
 
     @Test
-    @DisplayName("logSubstitutions skips both logs when maps are empty")
+    @DisplayName("logSubstitutions logs nothing without overrides")
     void logSubstitutionsSkipsWhenEmpty() {
-        dependencyLogger.logSubstitutions(Map.of(), Map.of(), logger);
+        dependencyLogger.logSubstitutions(Map.of(), logger);
 
         verifyNoInteractions(logger);
     }
 
     @Test
-    @DisplayName("logSubstitutions logs only overrides when applyLogs is empty")
+    @DisplayName("logSubstitutions logs overridden versions")
     void logSubstitutionsLogsOverridesOnly() {
-        dependencyLogger.logSubstitutions(Map.of("g:a", "g:a:1.0 -> 2.0"), Map.of(), logger);
+        dependencyLogger.logSubstitutions(Map.of("g:a", "g:a:1.0 -> 2.0"), logger);
 
         verify(logger).lifecycle(contains("Overridden"));
         verify(logger).lifecycle("g:a:1.0 -> 2.0");
         verifyNoMoreInteractions(logger);
     }
 
-    @Test
-    @DisplayName("logSubstitutions logs only applied versions when overrideLogs is empty")
-    void logSubstitutionsLogsAppliedOnly() {
-        dependencyLogger.logSubstitutions(Map.of(), Map.of("g:b", "g:b:3.0"), logger);
-
-        verify(logger).info(contains("Applied"));
-        verify(logger).info("g:b:3.0");
-        verifyNoMoreInteractions(logger);
-    }
 }

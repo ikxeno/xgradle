@@ -16,7 +16,6 @@
 package org.altlinux.xgradle.impl.processors;
 
 import com.google.inject.AbstractModule;
-import org.altlinux.xgradle.interfaces.processors.BomProcessor;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 /**
  * Guice module for Processors bindings.
@@ -29,6 +28,5 @@ public final class ProcessorsModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(PluginProcessor.class).to(DefaultPluginProcessor.class);
-        bind(BomProcessor.class).to(DefaultBomProcessor.class);
     }
 }

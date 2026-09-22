@@ -19,7 +19,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.services.ServicesModule;
@@ -92,7 +91,6 @@ class PomMetadataReaderTests {
     private Injector createInjector() {
         return Guice.createInjector(
                 Modules.override(
-                        new CachesModule(),
                         new ParsersModule(),
                         new MavenModule(),
                         new ServicesModule()

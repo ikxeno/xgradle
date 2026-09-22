@@ -15,10 +15,8 @@
  */
 package org.altlinux.xgradle.impl.parsers;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.altlinux.xgradle.interfaces.caches.PomDataCache;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
@@ -39,135 +37,39 @@ import java.util.Map;
 @Singleton
 final class DefaultPomParser implements PomParser {
 
-    private final PomDataCache cache;
     private final PomHierarchyLoader hierarchyLoader;
 
-    private final PomPropertiesCollector propertiesCollector;
-    private final PomCoordinateFactory coordinateFactory;
-    private final PomDependencyManagementParser dependencyManagementParser;
-    private final PomDependenciesParser dependenciesParser;
+    private final PomPropertiesCollector propertiesCollector = new PomPropertiesCollector();
+    private final PomCoordinateFactory coordinateFactory = new PomCoordinateFactory();
+    private final PomDependencyManagementParser dependencyManagementParser = new PomDependencyManagementParser();
+    private final PomDependenciesParser dependenciesParser = new PomDependenciesParser();
 
     @Inject
-    DefaultPomParser(
-            PomDataCache cache,
-            PomHierarchyLoader hierarchyLoader
-    ) {
-        this.cache = cache;
+    DefaultPomParser(PomHierarchyLoader hierarchyLoader) {
         this.hierarchyLoader = hierarchyLoader;
-
-        this.propertiesCollector = new PomPropertiesCollector();
-        this.coordinateFactory = new PomCoordinateFactory();
-        this.dependencyManagementParser =
-                new PomDependencyManagementParser();
-        this.dependenciesParser = new PomDependenciesParser();
     }
 
     @Override
     public MavenCoordinate parsePom(Path pomPath) {
-        String cacheKey = pomPath.toString();
-
-        MavenCoordinate cached = cache.getPom(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-
         List<Model> hierarchy = hierarchyLoader.loadHierarchy(pomPath);
         if (hierarchy == null || hierarchy.isEmpty()) {
             return null;
         }
-
-        MavenCoordinate coordinate =
-                coordinateFactory.create(
-                        hierarchy.get(hierarchy.size() - 1),
-                        pomPath
-                );
-
-        if (coordinate != null) {
-            cache.putPom(cacheKey, coordinate);
-        }
-        return coordinate;
+        return coordinateFactory.create(hierarchy.get(hierarchy.size() - 1), pomPath);
     }
 
     @Override
     public Map<String, String> parseProperties(Path pomPath) {
-        String cacheKey = pomPath.toString();
-
-        Map<String, String> cached = cache.getProperties(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-
-        List<Model> hierarchy = hierarchyLoader.loadHierarchy(pomPath);
-        Map<String, String> properties =
-                Map.copyOf(
-                        propertiesCollector.collect(hierarchy)
-                );
-
-        cache.putProperties(cacheKey, properties);
-        return properties;
+        return Map.copyOf(propertiesCollector.collect(hierarchyLoader.loadHierarchy(pomPath)));
     }
 
     @Override
-    public ArrayList<MavenCoordinate> parseDependencyManagement(Path pomPath) {
-        String cacheKey = pomPath.toString();
-
-        ImmutableList<MavenCoordinate> cached =
-                cache.getDependencyManagement(cacheKey);
-        if (cached != null) {
-            return new ArrayList<>(cached);
-        }
-
+    public List<MavenCoordinate> parseDependencies(Path pomPath) {
         List<Model> hierarchy = hierarchyLoader.loadHierarchy(pomPath);
-        Map<String, String> properties =
-                propertiesCollector.collect(hierarchy);
-
+        Map<String, String> properties = propertiesCollector.collect(hierarchy);
         Map<String, MavenCoordinate> managed =
-                dependencyManagementParser.parse(
-                        hierarchy,
-                        properties,
-                        propertiesCollector
-                );
-
-        ImmutableList<MavenCoordinate> result =
-                ImmutableList.copyOf(managed.values());
-
-        cache.putDependencyManagement(cacheKey, result);
-        return new ArrayList<>(result);
-    }
-
-    @Override
-    public ArrayList<MavenCoordinate> parseDependencies(Path pomPath) {
-        String cacheKey = pomPath.toString();
-
-        ImmutableList<MavenCoordinate> cached =
-                cache.getDependencies(cacheKey);
-        if (cached != null) {
-            return new ArrayList<>(cached);
-        }
-
-        List<Model> hierarchy = hierarchyLoader.loadHierarchy(pomPath);
-        Map<String, String> properties =
-                propertiesCollector.collect(hierarchy);
-
-        Map<String, MavenCoordinate> managed =
-                dependencyManagementParser.parse(
-                        hierarchy,
-                        properties,
-                        propertiesCollector
-                );
-
-        Map<String, MavenCoordinate> resolved =
-                dependenciesParser.parse(
-                        hierarchy,
-                        properties,
-                        managed,
-                        propertiesCollector
-                );
-
-        ArrayList<MavenCoordinate> result =
-                new ArrayList<>(resolved.values());
-
-        cache.putDependencies(cacheKey, ImmutableList.copyOf(result));
-        return result;
+                dependencyManagementParser.parse(hierarchy, properties, propertiesCollector);
+        return new ArrayList<>(
+                dependenciesParser.parse(hierarchy, properties, managed, propertiesCollector).values());
     }
 }

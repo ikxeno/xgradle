@@ -19,7 +19,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
@@ -74,7 +73,7 @@ class InstalledArtifactsLoaderTests {
     @BeforeEach
     void setUp() throws IOException, URISyntaxException {
         injector = Guice.createInjector(
-                new MetadataModule(), new ParsersModule(), new CachesModule(), new MavenModule(),
+                new MetadataModule(), new ParsersModule(), new MavenModule(),
                 new AbstractModule() {
                     @Override
                     protected void configure() {

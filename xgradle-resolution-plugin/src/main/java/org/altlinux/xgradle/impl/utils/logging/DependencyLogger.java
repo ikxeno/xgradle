@@ -50,17 +50,7 @@ public class DependencyLogger {
         newDeps.forEach(dep -> logger.info(" - {}", dep));
     }
 
-    public void logTestContextDependencies(Set<String> testDeps, Logger logger) {
-        logger.lifecycle("Test context dependencies: {}", testDeps.size());
-        testDeps.forEach(dep -> logger.info(" - {}", dep));
-    }
 
-    public void logConfigurationArtifacts(Map<String, Set<String>> artifacts, Logger logger) {
-        artifacts.forEach((cfg, arts) -> {
-            logger.lifecycle("Configuration '{}' ({} artifacts):", cyan(cfg), arts.size());
-            arts.forEach(a -> logger.lifecycle(" - {}", a));
-        });
-    }
 
     public void logSkippedDependencies(Set<String> notFound, Set<String> skipped, Logger logger) {
         if (!notFound.isEmpty()) {
@@ -76,7 +66,6 @@ public class DependencyLogger {
 
     public void logSubstitutions(
             Map<String, String> overrideLogs,
-            Map<String, String> applyLogs,
             Logger logger
     ) {
         if (!overrideLogs.isEmpty()) {
@@ -84,13 +73,6 @@ public class DependencyLogger {
             overrideLogs.values().stream()
                     .sorted()
                     .forEach(logger::lifecycle);
-        }
-
-        if (!applyLogs.isEmpty()) {
-            logger.info(green("\nApplied versions:"));
-            applyLogs.values().stream()
-                    .sorted()
-                    .forEach(logger::info);
         }
     }
 

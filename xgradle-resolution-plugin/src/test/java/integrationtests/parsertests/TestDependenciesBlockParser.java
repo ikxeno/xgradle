@@ -18,7 +18,6 @@ package integrationtests.parsertests;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
 import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.maven.MavenModule;
@@ -54,7 +53,6 @@ public class TestDependenciesBlockParser {
     public void prepareParser() {
         Injector injector = Guice.createInjector(
                 new LoggingModule(),
-                new CachesModule(),
                 new CollectorsModule(),
                 new MavenModule(),
                 new MetadataModule(),

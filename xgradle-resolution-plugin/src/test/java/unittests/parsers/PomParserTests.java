@@ -21,7 +21,6 @@ import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
-import org.altlinux.xgradle.interfaces.caches.PomDataCache;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.apache.maven.model.Model;
@@ -45,45 +44,13 @@ import static org.mockito.Mockito.*;
 class PomParserTests {
 
     @Mock
-    private PomDataCache cache;
-
-    @Mock
     private PomHierarchyLoader loader;
 
-    @Test
-    @DisplayName("Returns cached POM without hierarchy load")
-    void returnsCachedPom() {
-        MavenCoordinate cached = MavenCoordinate.builder()
-                .groupId("g")
-                .artifactId("a")
-                .version("1")
-                .build();
-
-        Path pomPath = Path.of("file.pom");
-        when(cache.getPom(pomPath.toString())).thenReturn(cached);
-
-        Injector injector = Guice.createInjector(
-                Modules.override(new ParsersModule()).with(new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(PomDataCache.class).toInstance(cache);
-                        bind(PomHierarchyLoader.class).toInstance(loader);
-                    }
-                })
-        );
-
-        PomParser parser = injector.getInstance(PomParser.class);
-        MavenCoordinate result = parser.parsePom(pomPath);
-
-        assertSame(cached, result);
-        verify(loader, never()).loadHierarchy(any());
-    }
 
     @Test
-    @DisplayName("Loads hierarchy and caches result when missing")
-    void loadsAndCachesWhenMissing() {
+    @DisplayName("Reads coordinates from the POM hierarchy")
+    void readsCoordinates() {
         Path pomPath = Path.of("file.pom");
-        when(cache.getPom(pomPath.toString())).thenReturn(null);
 
         Model model = new Model();
         model.setGroupId("g");
@@ -95,7 +62,6 @@ class PomParserTests {
                 Modules.override(new ParsersModule()).with(new AbstractModule() {
                     @Override
                     protected void configure() {
-                        bind(PomDataCache.class).toInstance(cache);
                         bind(PomHierarchyLoader.class).toInstance(loader);
                     }
                 })
@@ -108,7 +74,5 @@ class PomParserTests {
         assertEquals("g", result.getGroupId());
         assertEquals("a", result.getArtifactId());
         assertEquals("1", result.getVersion());
-
-        verify(cache).putPom(eq(pomPath.toString()), any(MavenCoordinate.class));
     }
 }

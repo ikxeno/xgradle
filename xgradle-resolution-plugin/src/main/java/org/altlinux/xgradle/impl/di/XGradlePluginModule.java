@@ -17,7 +17,6 @@
 package org.altlinux.xgradle.impl.di;
 
 import com.google.inject.AbstractModule;
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
 import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
@@ -41,7 +40,6 @@ public final class XGradlePluginModule extends AbstractModule {
     protected void configure() {
         install(new LoggingModule());
 
-        install(new CachesModule());
 
         install(new CollectorsModule());
 

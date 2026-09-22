@@ -17,7 +17,6 @@
 package org.altlinux.xgradle.impl.collectors;
 
 import com.google.inject.AbstractModule;
-import org.altlinux.xgradle.interfaces.collectors.ConfigurationInfoCollector;
 import org.altlinux.xgradle.interfaces.collectors.DependencyCollector;
 /**
  * Guice module for Collectors bindings.
@@ -30,6 +29,5 @@ public final class CollectorsModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(DependencyCollector.class).to(DefaultDependencyCollector.class);
-        bind(ConfigurationInfoCollector.class).to(DefaultConfigurationInfoCollector.class);
     }
 }

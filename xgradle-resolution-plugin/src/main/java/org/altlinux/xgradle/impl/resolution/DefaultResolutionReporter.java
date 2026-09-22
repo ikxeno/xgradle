@@ -49,8 +49,6 @@ final class DefaultResolutionReporter implements ResolutionReporter {
         depLogger.logSection("Resolved system artifacts", logger);
         depLogger.logResolvedArtifacts(resolutionContext.getSystemArtifacts(), logger);
 
-        depLogger.logSection("Test context dependencies", logger);
-        depLogger.logTestContextDependencies(resolutionContext.getTestContextDependencies(), logger);
 
         depLogger.logSection("===== DEPENDENCY RESOLUTION COMPLETED =====", logger);
 
@@ -63,13 +61,11 @@ final class DefaultResolutionReporter implements ResolutionReporter {
             );
         }
 
-        if (!resolutionContext.getOverrideLogs().isEmpty()
-                || !resolutionContext.getApplyLogs().isEmpty()) {
+        if (!resolutionContext.getOverrideLogs().isEmpty()) {
             resolutionContext.getGradle().getTaskGraph().whenReady(taskGraph -> {
                 depLogger.logSection("Dependency substitutions", logger);
                 depLogger.logSubstitutions(
                         resolutionContext.getOverrideLogs(),
-                        resolutionContext.getApplyLogs(),
                         logger
                 );
             });

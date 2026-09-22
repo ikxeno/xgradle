@@ -33,7 +33,6 @@ public final class MavenCoordinateBuilder {
     String packaging = MavenPackaging.JAR.getPackaging();
     MavenScope scope = MavenScope.COMPILE;
     Path pomPath;
-    boolean testContext;
     boolean optional;
 
     public MavenCoordinateBuilder() {
@@ -46,7 +45,6 @@ public final class MavenCoordinateBuilder {
         this.packaging = src.getPackaging();
         this.scope = src.getScope();
         this.pomPath = src.getPomPath();
-        this.testContext = src.isTestContext();
         this.optional = src.isOptional();
     }
 
@@ -85,10 +83,6 @@ public final class MavenCoordinateBuilder {
         return this;
     }
 
-    public MavenCoordinateBuilder testContext(boolean testContext) {
-        this.testContext = testContext;
-        return this;
-    }
 
     public MavenCoordinateBuilder optional(boolean optional) {
         this.optional = optional;

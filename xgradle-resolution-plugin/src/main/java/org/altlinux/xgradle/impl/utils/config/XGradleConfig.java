@@ -47,7 +47,6 @@ public final class XGradleConfig {
             "disable.xgradle",
             "disable.logo",
             "enable.ansi.color",
-            "xgradle.scan.depth",
             "generate.sbom"
     );
 
@@ -68,18 +67,6 @@ public final class XGradleConfig {
         return configValue != null ? configValue : defaultValue;
     }
 
-    public static int getIntProperty(String key, int defaultValue) {
-        String value = getProperty(key);
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        try {
-            int parsed = Integer.parseInt(value.trim());
-            return parsed >= 0 ? parsed : defaultValue;
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
 
     public static void initSystemProperties() {
         ensureLoaded();

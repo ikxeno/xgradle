@@ -19,7 +19,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
@@ -55,8 +54,7 @@ class PomFinderTests {
     @BeforeEach
     void setUp() throws URISyntaxException {
         Injector injector = Guice.createInjector(
-                new MetadataModule(), new MavenModule(), new ParsersModule(), new CachesModule(),
-                new AbstractModule() {
+                new MetadataModule(), new MavenModule(), new ParsersModule(),                new AbstractModule() {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(mock(Logger.class));

@@ -21,8 +21,6 @@ import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.processors.ProcessorsModule;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.interfaces.processors.BomProcessor;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.initialization.Settings;
@@ -54,12 +52,6 @@ class PluginProcessorTests {
 
     @Mock
     private VersionScanner scanner;
-
-    @Mock
-    private PomParser pomParser;
-
-    @Mock
-    private BomProcessor bomProcessor;
 
     @Mock
     private Logger logger;
@@ -113,8 +105,6 @@ class PluginProcessorTests {
                     @Override
                     protected void configure() {
                         bind(VersionScanner.class).toInstance(scanner);
-                        bind(PomParser.class).toInstance(pomParser);
-                        bind(BomProcessor.class).toInstance(bomProcessor);
                         bind(Logger.class).toInstance(logger);
                     }
                 })
