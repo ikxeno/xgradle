@@ -15,18 +15,20 @@
  */
 package org.altlinux.xgradle.impl.resolvers;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
-import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.gradle.api.artifacts.DependencySubstitutions;
-import org.gradle.api.artifacts.component.ModuleComponentSelector;
-import org.gradle.api.invocation.Gradle;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 
-import java.util.Comparator;
+import org.altlinux.xgradle.impl.model.ArtifactKey;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
+
+import org.gradle.api.invocation.Gradle;
+
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Handles dependency version substitutions during Gradle resolution.
@@ -36,96 +38,53 @@ import java.util.Set;
 @Singleton
 public final class DefaultDependencySubstitutor implements DependencySubstitutor {
 
+    private static final String REASON = "Installed system version (XMvn metadata)";
+
+    private final MetadataIndex index;
+
+    @Inject
+    public DefaultDependencySubstitutor(MetadataIndex index) {
+        this.index = index;
+    }
+
     @Override
     public void configure(
             Gradle gradle,
             Map<String, Set<String>> requestedVersions,
-            Map<String, MavenCoordinate> systemArtifacts,
-            Map<String, String> managedVersions,
-            Map<String, String> overrideLogs,
-            Map<String, String> applyLogs
+            Map<String, String> overrideLogs
     ) {
-        if (gradle == null) {
-            return;
-        }
-
-        Map<String, Set<String>> requested = requestedVersions != null ? requestedVersions : Map.of();
-        Map<String, MavenCoordinate> artifacts = systemArtifacts != null ? systemArtifacts : Map.of();
-        Map<String, String> managed = managedVersions != null ? managedVersions : Map.of();
-
-        Map<String, String> overrides = overrideLogs;
-        Map<String, String> applies = applyLogs;
-        if (overrides == null || applies == null) {
-            return;
-        }
-
-        gradle.allprojects(project -> project.getConfigurations()
-                .all(config -> config.getResolutionStrategy()
-                        .dependencySubstitution(substitutions ->
-                                applySubstitutions(substitutions, requested, artifacts, managed, overrides, applies))
-                )
-        );
-    }
-
-    private void applySubstitutions(
-            DependencySubstitutions substitutions,
-            Map<String, Set<String>> requestedVersions,
-            Map<String, MavenCoordinate> systemArtifacts,
-            Map<String, String> managedVersions,
-            Map<String, String> overrideLogs,
-            Map<String, String> applyLogs
-    ) {
-        substitutions.all(details -> {
-            if (!(details.getRequested() instanceof ModuleComponentSelector)) {
-                return;
-            }
-
-            ModuleComponentSelector sel = (ModuleComponentSelector) details.getRequested();
-            String key = sel.getGroup() + ":" + sel.getModule();
-            String originalVersion = resolveOriginalVersion(requestedVersions, key, sel.getVersion());
-            String newVersion = null;
-            boolean isOverride = false;
-            boolean isBomApply = false;
-
-            MavenCoordinate system = systemArtifacts.get(key);
-            if (system != null) {
-                newVersion = system.getVersion();
-                isOverride = newVersion != null && !newVersion.equals(originalVersion);
-            } else if (managedVersions.containsKey(key)) {
-                newVersion = managedVersions.get(key);
-                isBomApply = newVersion != null && !newVersion.equals(originalVersion);
-            }
-
-            if (isOverride) {
-                String logMessage = "Override version: " + key + ":" + originalVersion + " -> " + newVersion;
-                overrideLogs.put(key + "|" + originalVersion + "|" + newVersion, logMessage);
-                details.useTarget(
-                        substitutions.module(key + ":" + newVersion),
-                        "System dependency override"
-                );
-            } else if (isBomApply) {
-                String logMessage = "Apply BOM version: " + key + ":" + newVersion;
-                applyLogs.put(key, logMessage);
-                details.useTarget(
-                        substitutions.module(key + ":" + newVersion),
-                        "BOM managed version"
-                );
-            }
-        });
-    }
-
-    private String resolveOriginalVersion(
-            Map<String, Set<String>> requestedVersions,
-            String key,
-            String requestedVersion
-    ) {
-        Set<String> versions = requestedVersions.get(key);
-        if (versions != null && !versions.isEmpty()) {
-            return versions.stream()
+        requestedVersions.forEach((key, versions) -> {
+            String[] ga = key.split(":", 2);
+            versions.stream()
                     .filter(Objects::nonNull)
-                    .max(Comparator.comparing(version -> new ComparableVersion(version)))
-                    .orElse(requestedVersion);
-        }
-        return requestedVersion != null ? requestedVersion : "(unspecified)";
+                    .forEach(version -> installedRevision(ga[0], ga[1], version)
+                            .filter(revision -> !revision.equals(version))
+                            .ifPresent(revision -> overrideLogs.put(
+                                    key + "|" + version + "|" + revision,
+                                    "Override version: " + key + ":" + version + " -> " + revision)));
+        });
+
+        gradle.allprojects(project -> project.getConfigurations().configureEach(configuration ->
+                configuration.getResolutionStrategy().eachDependency(details -> {
+                    String requested = details.getRequested().getVersion();
+                    installedRevision(details.getRequested().getGroup(), details.getRequested().getName(), requested)
+                            .filter(revision -> !revision.equals(requested))
+                            .ifPresent(revision -> {
+                                details.useVersion(revision);
+                                details.because(REASON);
+                            });
+                })));
+    }
+
+    /**
+     * Installed revision for a request, looked up like XMvn: the requested compat
+     * version if installed, else the default version; a jar first, then a POM-only module.
+     */
+    private Optional<String> installedRevision(String group, String name, String version) {
+        return Stream.of(ArtifactKey.DEFAULT_EXTENSION, "pom")
+                .map(extension -> new ArtifactKey(group, name, extension, "", version))
+                .map(index::revision)
+                .flatMap(Optional::stream)
+                .findFirst();
     }
 }

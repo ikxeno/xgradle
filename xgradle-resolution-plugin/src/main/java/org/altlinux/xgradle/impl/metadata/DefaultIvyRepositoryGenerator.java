@@ -124,7 +124,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
      */
     private Map<String, Module> modules() {
         Map<String, Module> modules = new TreeMap<>();
-        index.entries().forEach((key, artifact) -> moduleRevision(key).ifPresent(rev -> {
+        index.entries().forEach((key, artifact) -> index.revision(key).ifPresent(rev -> {
             Module module = modules.computeIfAbsent(
                     key.getGroupId() + ":" + key.getArtifactId() + ":" + rev,
                     id -> new Module(key.getGroupId(), key.getArtifactId(), rev));
@@ -132,18 +132,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         }));
         modules.values().forEach(Module::resolveAlias);
         return modules;
-    }
-
-    /**
-     * Revision of the module an index key belongs to, as XMvn resolves it:
-     * the compat version for a compat artifact, the upstream version otherwise.
-     */
-    private Optional<String> moduleRevision(ArtifactKey key) {
-        XmvnArtifact exact = index.entries().get(key);
-        if (exact != null && !key.isSystemVersion()) {
-            return Optional.of(key.getVersion());
-        }
-        return index.resolve(key.withVersion(ArtifactKey.SYSTEM_VERSION)).map(XmvnArtifact::getVersion);
     }
 
     private void writeModule(Path repo, Module module) {
@@ -196,7 +184,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                     module.aliasOf.getGroupId(), module.aliasOf.getArtifactId(), module.rev, null));
         }
         return module.declaredDependencies()
-                .flatMap(dep -> moduleRevision(dep.toKey())
+                .flatMap(dep -> index.revision(dep.toKey())
                         .map(rev -> new ResolvedDependency(dep.getGroupId(), dep.getArtifactId(), rev, dep))
                         .stream());
     }
@@ -206,7 +194,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             return List.of();
         }
         return module.declaredDependencies()
-                .filter(dep -> moduleRevision(dep.toKey()).isEmpty())
+                .filter(dep -> index.revision(dep.toKey()).isEmpty())
                 .map(dep -> module.org + ":" + module.name + ":" + module.rev + " -> " + dep)
                 .collect(Collectors.toList());
     }

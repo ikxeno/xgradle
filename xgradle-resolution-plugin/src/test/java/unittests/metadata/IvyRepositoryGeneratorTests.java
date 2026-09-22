@@ -105,6 +105,34 @@ class IvyRepositoryGeneratorTests {
     }
 
     @Test
+    @DisplayName("platform() and enforcedPlatform() on a POM-only module resolve to nothing")
+    void platformOnPomOnlyModule() throws IOException {
+        Path metadata = Files.createDirectories(temp.resolve("metadata"));
+        Path jars = Files.createDirectories(temp.resolve("java"));
+        Files.writeString(metadata.resolve("bom.xml"), metadataFile(
+                "<artifact><groupId>org.example</groupId><artifactId>bom</artifactId><extension>pom</extension>"
+                        + "<version>7</version><path>" + jars.resolve("bom.pom") + "</path></artifact>"
+                        + artifact("org.example", "lib", "1.5", jars.resolve("lib.jar"), "")));
+        Files.writeString(jars.resolve("lib.jar"), "lib");
+        index.build(List.of(metadata));
+        IvyRepository repository = generator.generate(temp.resolve("cache"));
+
+        Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("platform").toFile()).build();
+        project.getPluginManager().apply("java-library");
+        addRepository(project, repository);
+        project.getDependencies().add("implementation",
+                project.getDependencies().platform("org.example:bom:7"));
+        project.getDependencies().add("implementation",
+                project.getDependencies().enforcedPlatform("org.example:bom:7"));
+        project.getDependencies().add("implementation", "org.example:lib:1.5");
+
+        Set<String> files = project.getConfigurations().getByName("compileClasspath").resolve().stream()
+                .map(file -> resolveLink(file).getName())
+                .collect(Collectors.toSet());
+        assertEquals(Set.of("lib.jar"), files);
+    }
+
+    @Test
     @DisplayName("writes descriptors for real ALT metadata")
     void writesDescriptorsForAltMetadata() throws IOException, URISyntaxException {
         index.build(List.of(Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI())));
@@ -140,6 +168,15 @@ class IvyRepositoryGeneratorTests {
 
     private Set<String> resolve(IvyRepository repository, String notation) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
+        addRepository(project, repository);
+        Configuration configuration = project.getConfigurations().detachedConfiguration(
+                project.getDependencies().create(notation));
+        return configuration.resolve().stream()
+                .map(file -> resolveLink(file).getName())
+                .collect(Collectors.toSet());
+    }
+
+    private static void addRepository(Project project, IvyRepository repository) {
         project.getRepositories().ivy(repo -> {
             repo.setUrl(repository.getRoot().toUri());
             repo.patternLayout(layout -> {
@@ -148,11 +185,6 @@ class IvyRepositoryGeneratorTests {
             });
             repo.metadataSources(sources -> sources.ivyDescriptor());
         });
-        Configuration configuration = project.getConfigurations().detachedConfiguration(
-                project.getDependencies().create(notation));
-        return configuration.resolve().stream()
-                .map(file -> resolveLink(file).getName())
-                .collect(Collectors.toSet());
     }
 
     private static File resolveLink(File file) {

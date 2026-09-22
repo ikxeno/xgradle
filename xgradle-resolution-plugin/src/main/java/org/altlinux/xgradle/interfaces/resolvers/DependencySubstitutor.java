@@ -15,7 +15,6 @@
  */
 package org.altlinux.xgradle.interfaces.resolvers;
 
-import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.invocation.Gradle;
 
 import java.util.Map;
@@ -28,17 +27,15 @@ import java.util.Set;
  */
 
 public interface DependencySubstitutor {
-/**
-  * Method the operation.
 
- */
-
+    /**
+     * Makes every module request in every project resolve to the installed
+     * revision, and records in {@code overrideLogs} which declared versions
+     * were replaced.
+     */
     void configure(
             Gradle gradle,
             Map<String, Set<String>> requestedVersions,
-            Map<String, MavenCoordinate> systemArtifacts,
-            Map<String, String> managedVersions,
-            Map<String, String> overrideLogs,
-            Map<String, String> applyLogs
+            Map<String, String> overrideLogs
     );
 }

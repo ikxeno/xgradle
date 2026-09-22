@@ -52,10 +52,7 @@ final class ApplySubstitutionStep implements ResolutionStep {
         substitutor.configure(
                 resolutionContext.getGradle(),
                 resolutionContext.getRequestedVersions(),
-                resolutionContext.getSystemArtifacts(),
-                resolutionContext.getManagedVersions(),
-                resolutionContext.getOverrideLogs(),
-                resolutionContext.getApplyLogs()
+                resolutionContext.getOverrideLogs()
         );
     }
 }

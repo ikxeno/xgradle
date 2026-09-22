@@ -43,6 +43,18 @@ public interface MetadataIndex {
     Optional<XmvnArtifact> resolve(ArtifactKey key);
 
     /**
+     * Revision of the installed module a key resolves to, as XMvn resolves it:
+     * the requested compat version if one is installed, otherwise the upstream
+     * version of the default artifact.
+     */
+    default Optional<String> revision(ArtifactKey key) {
+        if (!key.isSystemVersion() && entries().containsKey(key)) {
+            return Optional.of(key.getVersion());
+        }
+        return resolve(key.withVersion(ArtifactKey.SYSTEM_VERSION)).map(XmvnArtifact::getVersion);
+    }
+
+    /**
      * All installed artifacts, in metadata read order.
      */
     List<XmvnArtifact> artifacts();
