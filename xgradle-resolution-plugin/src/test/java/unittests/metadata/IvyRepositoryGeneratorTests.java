@@ -172,6 +172,24 @@ class IvyRepositoryGeneratorTests {
     }
 
     @Test
+    @DisplayName("writes a new repository when only the duplicate handling changes")
+    void fingerprintFollowsContent() throws IOException {
+        Path metadata = Files.createDirectories(temp.resolve("metadata"));
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        Files.writeString(metadata.resolve("b.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("b.jar"), "")));
+
+        index.build(List.of(metadata), true);
+        Path ignoring = generator.generate(temp.resolve("cache")).getRoot();
+        setUp();
+        index.build(List.of(metadata), false);
+        Path keeping = generator.generate(temp.resolve("cache")).getRoot();
+
+        assertNotEquals(ignoring, keeping);
+        assertFalse(Files.exists(ignoring.resolve("g/a/1/ivy.xml")), "both claims are dropped");
+        assertEquals(temp.resolve("b.jar"), Files.readSymbolicLink(keeping.resolve("g/a/1/a-1.jar")));
+    }
+
+    @Test
     @DisplayName("replaces a leftover repository directory without the complete marker")
     void replacesIncompleteRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));

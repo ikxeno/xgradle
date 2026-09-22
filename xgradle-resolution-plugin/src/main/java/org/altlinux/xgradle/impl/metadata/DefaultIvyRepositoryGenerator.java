@@ -37,6 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -52,8 +53,8 @@ import java.util.stream.Stream;
  * built from the XMvn dependency list, the way XMvn builds an effective POM
  * for Maven, plus symlinks to the installed files.
  *
- * <p>The repository is written to a directory named after a fingerprint of the
- * metadata files, first into a temporary directory that is then renamed, so
+ * <p>The repository is written to a directory named after a fingerprint of its
+ * content, first into a temporary directory that is then renamed, so
  * concurrent builds never see a half-written repository.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
@@ -62,9 +63,8 @@ import java.util.stream.Stream;
 final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     /** Bump when the generated layout or descriptors change, to drop old caches. */
-    private static final String FORMAT_VERSION = "1";
+    private static final String FORMAT_VERSION = "2";
     private static final String COMPLETE_MARKER = ".complete";
-    private static final String MISSING_FILE = "missing-dependencies.txt";
     private static final String CONF = "default";
 
     private final MetadataIndex index;
@@ -83,28 +83,27 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     }
 
     private IvyRepository generateUncached(Path cacheDirectory) {
-        Path root = cacheDirectory.resolve(fingerprint());
+        Collection<Module> modules = modules().values();
+        Path root = cacheDirectory.resolve(fingerprint(modules));
         try {
             if (!isComplete(root)) {
-                write(cacheDirectory, root);
+                write(cacheDirectory, root, modules);
             }
-            return new IvyRepository(root, Files.readAllLines(root.resolve(MISSING_FILE)));
         } catch (IOException | UncheckedIOException e) {
             throw new GradleException("Cannot write the system ivy repository to " + root, e);
         }
+        List<String> missing = modules.stream()
+                .flatMap(module -> missingDependencies(module).stream())
+                .sorted()
+                .collect(Collectors.toList());
+        return new IvyRepository(root, missing);
     }
 
-    private void write(Path cacheDirectory, Path root) throws IOException {
+    private void write(Path cacheDirectory, Path root, Collection<Module> modules) throws IOException {
         Files.createDirectories(cacheDirectory);
         Path tmp = Files.createTempDirectory(cacheDirectory, root.getFileName() + ".");
         try {
-            Map<String, Module> modules = modules();
-            modules.values().forEach(module -> writeModule(tmp, module));
-            List<String> missing = modules.values().stream()
-                    .flatMap(module -> missingDependencies(module).stream())
-                    .sorted()
-                    .collect(Collectors.toList());
-            Files.write(tmp.resolve(MISSING_FILE), missing);
+            modules.forEach(module -> writeModule(tmp, module));
             Files.createFile(tmp.resolve(COMPLETE_MARKER));
 
             moveIntoPlace(tmp, root);
@@ -173,14 +172,15 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             module.add(key, artifact);
         }));
         modules.values().forEach(Module::resolveAlias);
+        modules.values().forEach(module -> module.descriptor = descriptor(module));
         return modules;
     }
 
     private void writeModule(Path repo, Module module) {
-        Path dir = repo.resolve(module.org).resolve(module.name).resolve(module.rev);
+        Path dir = repo.resolve(module.directory());
         try {
             Files.createDirectories(dir);
-            Files.writeString(dir.resolve("ivy.xml"), descriptor(module), StandardCharsets.UTF_8);
+            Files.writeString(dir.resolve("ivy.xml"), module.descriptor, StandardCharsets.UTF_8);
             for (Map.Entry<String, Path> file : module.files.entrySet()) {
                 Files.createSymbolicLink(dir.resolve(file.getKey()), file.getValue());
             }
@@ -274,26 +274,21 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         return xml.append("    </dependency>\n").toString();
     }
 
-    private String fingerprint() {
+    /**
+     * Hash of everything the repository consists of, so a repository is reused
+     * exactly when it would be written the same way, whatever changed in the
+     * metadata, the installed files or the configuration.
+     */
+    private static String fingerprint(Collection<Module> modules) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(FORMAT_VERSION.getBytes(StandardCharsets.UTF_8));
-            index.artifacts().stream()
-                    .map(XmvnArtifact::getMetadataFile)
-                    .distinct()
-                    .map(DefaultIvyRepositoryGenerator::fileStamp)
-                    .forEach(stamp -> digest.update(stamp.getBytes(StandardCharsets.UTF_8)));
+            Stream.concat(
+                    Stream.of(FORMAT_VERSION),
+                    modules.stream().flatMap(Module::contentLines))
+                    .forEach(line -> digest.update((line + "\n").getBytes(StandardCharsets.UTF_8)));
             return toHex(digest.digest()).substring(0, 32);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available", e);
-        }
-    }
-
-    private static String fileStamp(Path file) {
-        try {
-            return file + "\0" + Files.size(file) + "\0" + Files.getLastModifiedTime(file).toMillis() + "\n";
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 
@@ -324,6 +319,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         private XmvnArtifact main;
         private XmvnArtifact pom;
         private XmvnArtifact aliasOf;
+        private String descriptor;
 
         private Module(String org, String name, String rev) {
             this.org = org;
@@ -349,6 +345,16 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 String classifier = key.getClassifier().isEmpty() ? "" : "-" + key.getClassifier();
                 files.put(name + "-" + rev + classifier + "." + key.getExtension(), artifact.getPath());
             }
+        }
+
+        private String directory() {
+            return org + "/" + name + "/" + rev;
+        }
+
+        private Stream<String> contentLines() {
+            return Stream.concat(
+                    Stream.of(directory(), descriptor),
+                    files.entrySet().stream().map(file -> file.getKey() + " -> " + file.getValue()));
         }
 
         /** Coordinates that also have real artifacts are not treated as an alias. */
