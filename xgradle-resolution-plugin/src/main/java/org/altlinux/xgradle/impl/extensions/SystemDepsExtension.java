@@ -15,6 +15,7 @@
  */
 package org.altlinux.xgradle.impl.extensions;
 
+import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
 import org.gradle.api.logging.Logger;
@@ -43,11 +44,12 @@ public class SystemDepsExtension {
 
     /**
      * XMvn metadata locations: {@code maven.metadata.dir} (comma-separated) from a
-     * system property or {@code ~/.xgradle/xgradle.config}, otherwise
-     * {@code /usr/share/maven-metadata} if it exists. A location set explicitly is
-     * returned even if it is missing, so that reading it fails loudly.
+     * system property or {@code ~/.xgradle/xgradle.config}; otherwise the metadata
+     * repositories of the XMvn configuration that exist, as XMvn skips the others;
+     * otherwise {@code /usr/share/maven-metadata} if it exists. A location set
+     * explicitly is returned even if it is missing, so that reading it fails loudly.
      */
-    public static List<Path> getMetadataPaths() {
+    public static List<Path> getMetadataPaths(XmvnConfiguration xmvn) {
         Optional<String> configured = Optional.ofNullable(System.getProperty(MAVEN_METADATA_DIR_KEY))
                 .or(() -> Optional.ofNullable(XGradleConfig.getConfigProperty(MAVEN_METADATA_DIR_KEY)))
                 .filter(value -> !value.isBlank());
@@ -58,6 +60,12 @@ public class SystemDepsExtension {
                     .distinct()
                     .map(Path::of)
                     .collect(Collectors.toList());
+        }
+        List<Path> fromXmvn = xmvn.getMetadataRepositories().stream()
+                .filter(Files::exists)
+                .collect(Collectors.toList());
+        if (!fromXmvn.isEmpty()) {
+            return fromXmvn;
         }
         if (Files.isDirectory(DEFAULT_METADATA_DIR)) {
             return List.of(DEFAULT_METADATA_DIR);

@@ -42,8 +42,10 @@ set** (prepared by packaging) rather than downloading from the network.
 ## How it works
 
 Every ALT Java package installs XMvn metadata (`/usr/share/maven-metadata/*.xml`): the exact
-coordinates of each installed jar and POM, its path, aliases, compat versions and its runtime
-dependencies. The plugin reads this metadata the way XMvn does and generates an ivy repository
+coordinates of each installed jar and POM, its path, aliases (`%mvn_alias`), compat versions
+(`%mvn_compat_version`) and its runtime dependencies. The plugin reads the metadata repositories
+and `ignoreDuplicateMetadata` from the XMvn configuration (the project's `.xmvn/`, then the XDG
+user and system directories), resolves artifacts with the same rules as XMvn and generates an ivy repository
 from it in the Gradle user home (`caches/xgradle/ivy`): one `ivy.xml` per installed module,
 built from the metadata dependency list, plus symlinks to the installed files. The repository
 is added first to every project and to plugin management, so Gradle resolves system artifacts
@@ -57,7 +59,7 @@ xgradle-resolution-plugin is configured via **system properties** or the user co
 
 | Property | Meaning |
 |---|---|
-| `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Defaults to `/usr/share/maven-metadata`. |
+| `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Overrides the metadata repositories of the XMvn configuration (on ALT `/usr/share/maven-metadata` and `/usr/share/javapackages-bootstrap/maven-metadata`). |
 | `disable.xgradle=true` | Completely disables xgradle plugin logic for the current build. |
 | `disable.logo=true` | Disable ASCII banner printing. |
 | `enable.ansi.color=true` | Enable ANSI colors in xgradle logs. |

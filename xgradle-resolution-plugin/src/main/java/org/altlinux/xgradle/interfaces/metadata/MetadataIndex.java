@@ -33,8 +33,18 @@ public interface MetadataIndex {
 
     /**
      * Reads the metadata under the given locations and replaces the index content.
+     *
+     * @param ignoreDuplicates XMvn's {@code ignoreDuplicateMetadata}: drop a key two
+     *                         artifacts claim instead of letting the later one win
      */
-    void build(List<Path> locations);
+    void build(List<Path> locations, boolean ignoreDuplicates);
+
+    /**
+     * Builds the index with XMvn's default, {@code ignoreDuplicateMetadata=true}.
+     */
+    default void build(List<Path> locations) {
+        build(locations, true);
+    }
 
     /**
      * Resolves a key like XMvn: an exact compat version match first,

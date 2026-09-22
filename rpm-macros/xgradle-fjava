@@ -38,8 +38,8 @@
 # Gradle launch script.
 %__gradle gradle
 
-# Configure repositories.
-%_xgradleflags -Dmaven.metadata.dir=%_mavenmetadatadir
+# Extra flags for xgradle. Metadata locations come from the XMvn configuration.
+%_xgradleflags %nil
 
 # Run Gradle publication task.
 %gradle_publish %__gradle publishToMavenLocal --offline %_xgradleflags

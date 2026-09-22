@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.File;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -59,6 +61,7 @@ class XGradlePluginTests {
         StartParameter startParameter = mock(StartParameter.class);
         Gradle gradle = mock(Gradle.class);
         when(gradle.getStartParameter()).thenReturn(startParameter);
+        when(startParameter.getCurrentDir()).thenReturn(new File(System.getProperty("java.io.tmpdir")));
 
         plugin.apply(gradle);
 
@@ -73,6 +76,7 @@ class XGradlePluginTests {
         StartParameter startParameter = mock(StartParameter.class);
         Gradle gradle = mock(Gradle.class);
         when(gradle.getStartParameter()).thenReturn(startParameter);
+        when(startParameter.getCurrentDir()).thenReturn(new File(System.getProperty("java.io.tmpdir")));
 
         plugin.apply(gradle);
 

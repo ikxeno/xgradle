@@ -27,10 +27,12 @@ import org.gradle.api.logging.Logger;
 
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Artifact index with the semantics of XMvn's {@code DefaultMetadataResult}
@@ -54,10 +56,10 @@ final class DefaultMetadataIndex implements MetadataIndex {
     }
 
     @Override
-    public void build(List<Path> locations) {
+    public void build(List<Path> locations, boolean ignoreDuplicates) {
         List<XmvnArtifact> read = reader.read(locations);
         Map<ArtifactKey, XmvnArtifact> index = new LinkedHashMap<>();
-        read.forEach(artifact -> artifact.lookupKeys().forEach(key -> put(index, key, artifact)));
+        read.forEach(artifact -> add(index, artifact, ignoreDuplicates));
 
         artifacts = List.copyOf(read);
         byKey = Collections.unmodifiableMap(index);
@@ -65,19 +67,34 @@ final class DefaultMetadataIndex implements MetadataIndex {
     }
 
     /**
-     * On a duplicate key the later artifact wins, unless only the earlier one
-     * belongs to a namespace - the same rule XMvn applies.
+     * Adds an artifact under each of its keys, handling a key another artifact
+     * already holds exactly like XMvn's {@code DefaultMetadataResult}: with
+     * {@code ignoreDuplicates} the key is dropped, otherwise the later artifact wins
+     * unless only the earlier one belongs to a namespace. As in XMvn, a key dropped
+     * as a duplicate is free again for the next artifact that claims it.
      */
-    private void put(Map<ArtifactKey, XmvnArtifact> index, ArtifactKey key, XmvnArtifact artifact) {
-        XmvnArtifact existing = index.putIfAbsent(key, artifact);
-        if (existing == null || existing == artifact) {
-            return;
-        }
-        logger.warn("Duplicate XMvn metadata for {}: {} and {}",
-                key, existing.getMetadataFile(), artifact.getMetadataFile());
-        if (existing.getNamespace().isEmpty() || !artifact.getNamespace().isEmpty()) {
-            index.put(key, artifact);
-        }
+    private void add(Map<ArtifactKey, XmvnArtifact> index, XmvnArtifact artifact, boolean ignoreDuplicates) {
+        Set<ArtifactKey> duplicates = new HashSet<>();
+        artifact.lookupKeys().stream()
+                .filter(key -> !duplicates.contains(key))
+                .forEach(key -> {
+                    XmvnArtifact existing = index.putIfAbsent(key, artifact);
+                    if (existing == null) {
+                        return;
+                    }
+                    duplicates.add(key);
+                    if (ignoreDuplicates) {
+                        index.remove(key);
+                        logger.warn("Ignoring XMvn metadata for {}: it is provided by both {} and {}",
+                                key, existing.getMetadataFile(), artifact.getMetadataFile());
+                    } else {
+                        logger.warn("Duplicate XMvn metadata for {}: {} and {}",
+                                key, existing.getMetadataFile(), artifact.getMetadataFile());
+                        if (existing.getNamespace().isEmpty() || !artifact.getNamespace().isEmpty()) {
+                            index.put(key, artifact);
+                        }
+                    }
+                });
     }
 
     @Override

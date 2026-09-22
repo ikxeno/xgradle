@@ -155,16 +155,40 @@ class MetadataIndexTests {
     }
 
     @Test
-    @DisplayName("reads files in name order, so the later file wins a duplicate")
+    @DisplayName("drops a key two artifacts claim, as XMvn does by default")
+    void dropsDuplicateByDefault(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
+        Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
+
+        index.build(List.of(dir));
+
+        assertTrue(index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).isEmpty());
+        verify(logger).warn(anyString(), any(Object.class), any(Object.class), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("like XMvn, lets a third artifact take a key dropped as a duplicate")
+    void thirdDuplicateTakesDroppedKey(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
+        Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
+        Files.writeString(dir.resolve("c.xml"), metadata("/usr/share/java/c.jar"));
+
+        index.build(List.of(dir));
+
+        assertEquals(Path.of("/usr/share/java/c.jar"),
+                index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).orElseThrow().getPath());
+    }
+
+    @Test
+    @DisplayName("with ignoreDuplicateMetadata=false reads files in name order and the later one wins")
     void laterFileWinsDuplicate(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
         Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
 
-        index.build(List.of(dir));
+        index.build(List.of(dir), false);
 
         assertEquals(Path.of("/usr/share/java/b.jar"),
                 index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).orElseThrow().getPath());
-        verify(logger).warn(anyString(), any(Object.class), any(Object.class), any(Object.class));
     }
 
     @Test

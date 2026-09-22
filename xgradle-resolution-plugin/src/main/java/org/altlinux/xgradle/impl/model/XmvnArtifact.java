@@ -83,6 +83,7 @@ public final class XmvnArtifact {
         ArtifactKey self = new ArtifactKey(groupId, artifactId, extension, classifier, ArtifactKey.SYSTEM_VERSION);
         return Stream.concat(Stream.of(self), aliases.stream())
                 .flatMap(base -> versions.stream().map(base::withVersion))
+                .distinct()
                 .collect(Collectors.toList());
     }
 

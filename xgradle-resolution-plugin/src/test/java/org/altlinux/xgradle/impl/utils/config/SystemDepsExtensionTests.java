@@ -16,6 +16,7 @@
 package org.altlinux.xgradle.impl.utils.config;
 
 import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
+import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -67,7 +69,7 @@ class SystemDepsExtensionTests {
         writeConfig(KEY + "=/tmp/from-config\n");
         System.setProperty(KEY, "/tmp/from-system");
 
-        assertEquals(List.of(Path.of("/tmp/from-system")), SystemDepsExtension.getMetadataPaths());
+        assertEquals(List.of(Path.of("/tmp/from-system")), SystemDepsExtension.getMetadataPaths(noXmvn()));
     }
 
     @Test
@@ -75,7 +77,7 @@ class SystemDepsExtensionTests {
     void readsConfigWhenSystemMissing() throws Exception {
         writeConfig(KEY + "=/tmp/from-config\n");
 
-        assertEquals(List.of(Path.of("/tmp/from-config")), SystemDepsExtension.getMetadataPaths());
+        assertEquals(List.of(Path.of("/tmp/from-config")), SystemDepsExtension.getMetadataPaths(noXmvn()));
     }
 
     @Test
@@ -83,7 +85,7 @@ class SystemDepsExtensionTests {
     void parsesMultiplePaths() {
         System.setProperty(KEY, " /a , /b,/a ,");
 
-        assertEquals(List.of(Path.of("/a"), Path.of("/b")), SystemDepsExtension.getMetadataPaths());
+        assertEquals(List.of(Path.of("/a"), Path.of("/b")), SystemDepsExtension.getMetadataPaths(noXmvn()));
     }
 
     @Test
@@ -91,7 +93,29 @@ class SystemDepsExtensionTests {
     void fallsBackToDefault() {
         List<Path> expected = Files.isDirectory(DEFAULT_DIR) ? List.of(DEFAULT_DIR) : List.of();
 
-        assertEquals(expected, SystemDepsExtension.getMetadataPaths());
+        assertEquals(expected, SystemDepsExtension.getMetadataPaths(noXmvn()));
+    }
+
+    @Test
+    @DisplayName("Uses the XMvn metadata repositories that exist")
+    void usesExistingXmvnRepositories() throws Exception {
+        Path metadata = Files.createDirectories(tempDir.resolve("maven-metadata"));
+        Path xmvnDir = Files.createDirectories(tempDir.resolve("share/xmvn"));
+        Files.writeString(xmvnDir.resolve("configuration.xml"),
+                "<configuration><resolverSettings><metadataRepositories>"
+                        + "<repository>" + metadata + "</repository>"
+                        + "<repository>" + tempDir.resolve("missing") + "</repository>"
+                        + "</metadataRepositories></resolverSettings></configuration>");
+        XmvnConfiguration xmvn = XmvnConfiguration.load(tempDir.resolve("project"),
+                Map.of("XDG_DATA_DIRS", tempDir.resolve("share").toString(), "XDG_CONFIG_DIRS", "/nonexistent"),
+                tempDir);
+
+        assertEquals(List.of(metadata), SystemDepsExtension.getMetadataPaths(xmvn));
+    }
+
+    private XmvnConfiguration noXmvn() {
+        return XmvnConfiguration.load(tempDir.resolve("project"),
+                Map.of("XDG_DATA_DIRS", "/nonexistent", "XDG_CONFIG_DIRS", "/nonexistent"), tempDir);
     }
 
     private void writeConfig(String content) throws Exception {

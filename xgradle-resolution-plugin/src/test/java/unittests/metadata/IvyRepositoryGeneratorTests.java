@@ -86,7 +86,8 @@ class IvyRepositoryGeneratorTests {
                                 + dependency("org.example", "extra", "1.0", true))));
         Files.writeString(metadata.resolve("lib.xml"), metadataFile(
                 artifact("org.example", "lib", "1.5", jars.resolve("lib.jar"), "",
-                        "<aliases><alias><groupId>org.example</groupId><artifactId>lib-legacy</artifactId></alias></aliases>")));
+                        "<aliases><alias><groupId>org.example</groupId><artifactId>lib-legacy</artifactId></alias>"
+                                + "<alias><groupId>org.renamed</groupId><artifactId>lib</artifactId></alias></aliases>")));
         Files.writeString(metadata.resolve("extra.xml"), metadataFile(
                 artifact("org.example", "extra", "1.0", jars.resolve("extra.jar"), "")));
         Files.writeString(jars.resolve("app.jar"), "app");
@@ -100,6 +101,8 @@ class IvyRepositoryGeneratorTests {
                 "the optional dependency is left out and the missing one is skipped");
         assertEquals(Set.of("lib.jar"), resolve(repository, "org.example:lib-legacy:1.5"),
                 "an alias resolves to the aliased module");
+        assertEquals(Set.of("lib.jar"), resolve(repository, "org.example:lib:1.5", "org.renamed:lib:1.5"),
+                "old and new coordinates of a relocated artifact put one jar on the classpath");
         assertEquals(List.of("org.example:app:2.0 -> org.example:absent:1.0"),
                 repository.getMissingDependencies());
     }
@@ -166,11 +169,13 @@ class IvyRepositoryGeneratorTests {
         assertTrue(Files.exists(second.resolve("marker")));
     }
 
-    private Set<String> resolve(IvyRepository repository, String notation) {
+    private Set<String> resolve(IvyRepository repository, String... notations) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         addRepository(project, repository);
         Configuration configuration = project.getConfigurations().detachedConfiguration(
-                project.getDependencies().create(notation));
+                java.util.Arrays.stream(notations)
+                        .map(project.getDependencies()::create)
+                        .toArray(org.gradle.api.artifacts.Dependency[]::new));
         return configuration.resolve().stream()
                 .map(file -> resolveLink(file).getName())
                 .collect(Collectors.toSet());

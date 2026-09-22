@@ -21,6 +21,7 @@ import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
+import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 import org.altlinux.xgradle.impl.di.XGradlePluginModule;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
@@ -54,7 +55,9 @@ public final class XGradlePlugin implements Plugin<Gradle> {
         Injector injector = Guice.createInjector(
                 new XGradlePluginModule()
         );
-        injector.getInstance(MetadataIndex.class).build(SystemDepsExtension.getMetadataPaths());
+        XmvnConfiguration xmvn = XmvnConfiguration.load(gradle.getStartParameter().getCurrentDir().toPath());
+        injector.getInstance(MetadataIndex.class).build(
+                SystemDepsExtension.getMetadataPaths(xmvn), xmvn.isIgnoreDuplicateMetadata());
 
         PluginsDependenciesHandler plugins = injector.getInstance(PluginsDependenciesHandler.class);
         ProjectDependenciesHandler dependencies = injector.getInstance(ProjectDependenciesHandler.class);
