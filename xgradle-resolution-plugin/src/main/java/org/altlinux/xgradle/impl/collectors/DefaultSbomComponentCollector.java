@@ -19,9 +19,12 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.models.SbomComponent;
 import org.altlinux.xgradle.impl.models.SbomLicense;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
+import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataLicense;
@@ -30,13 +33,16 @@ import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.gradle.api.Project;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -48,10 +54,14 @@ import java.util.stream.Collectors;
 public final class DefaultSbomComponentCollector implements SbomComponentCollector {
 
     private final PomMetadataReader pomMetadataReader;
+    private final MetadataIndex index;
+    private final PomFinder pomFinder;
 
     @Inject
-    public DefaultSbomComponentCollector(PomMetadataReader pomMetadataReader) {
+    public DefaultSbomComponentCollector(PomMetadataReader pomMetadataReader, MetadataIndex index, PomFinder pomFinder) {
         this.pomMetadataReader = pomMetadataReader;
+        this.index = index;
+        this.pomFinder = pomFinder;
     }
 
     @Override
@@ -65,7 +75,7 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
 
         appendLibraryComponents(artifacts, components, metadataByPomPath);
         appendPluginComponents(pluginArtifacts, components, metadataByPomPath);
-        appendResolvedJarComponents(rootProject, components);
+        appendResolvedJarComponents(rootProject, components, metadataByPomPath);
 
         return new ArrayList<>(components.values());
     }
@@ -121,21 +131,59 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
                 });
     }
 
+    /**
+     * Resolved jars, transitive ones included. A jar of an installed artifact is
+     * reported with its coordinates and POM metadata, any other jar by file name.
+     */
     private void appendResolvedJarComponents(
             Project rootProject,
-            Map<String, SbomComponent> components
+            Map<String, SbomComponent> components,
+            Map<Path, PomMetadata> metadataByPomPath
     ) {
         Set<File> resolvedJars = ResolvedArtifactsRegistry.get(rootProject);
         if (resolvedJars == null) {
             return;
         }
 
+        Map<Path, XmvnArtifact> installed = index.artifacts().stream()
+                .filter(artifact -> artifact.getPath() != null)
+                .collect(Collectors.toMap(
+                        artifact -> realPath(artifact.getPath()), Function.identity(), (first, second) -> first));
         resolvedJars.stream()
                 .filter(jar -> jar != null && jar.isFile())
-                .forEach(jar -> {
-                    SbomComponent component = SbomComponent.file(jar.getName());
-                    components.putIfAbsent(component.uniqueKey(), component);
-                });
+                .sorted()
+                .map(jar -> Optional.ofNullable(installed.get(realPath(jar.toPath())))
+                        .map(artifact -> installedComponent(artifact, metadataByPomPath))
+                        .orElseGet(() -> SbomComponent.file(jar.getName())))
+                .forEach(component -> components.putIfAbsent(component.uniqueKey(), component));
+    }
+
+    private SbomComponent installedComponent(XmvnArtifact artifact, Map<Path, PomMetadata> metadataByPomPath) {
+        MavenCoordinate coordinate = MavenCoordinate.builder()
+                .groupId(artifact.getGroupId())
+                .artifactId(artifact.getArtifactId())
+                .version(artifact.getVersion())
+                .pomPath(Optional.ofNullable(pomFinder.findPomForArtifact(artifact.getGroupId(), artifact.getArtifactId()))
+                        .map(MavenCoordinate::getPomPath)
+                        .orElse(null))
+                .build();
+        PomMetadata metadata = readPomMetadata(coordinate, metadataByPomPath);
+        return SbomComponent.maven(
+                coordinate.getGroupId(),
+                coordinate.getArtifactId(),
+                coordinate.getVersion(),
+                metadata.getProjectUrl(),
+                metadata.getScmUrl(),
+                toSbomLicenses(metadata.getLicenses())
+        );
+    }
+
+    private static Path realPath(Path path) {
+        try {
+            return path.toRealPath();
+        } catch (IOException e) {
+            return path.toAbsolutePath().normalize();
+        }
     }
 
     private boolean isEligibleCoordinate(MavenCoordinate coordinate) {
