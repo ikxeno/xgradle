@@ -161,6 +161,22 @@ class IvyRepositoryGeneratorTests {
     }
 
     @Test
+    @DisplayName("publishes the jar of a module that also installs other files")
+    void publishesJarOverOtherExtensions(@TempDir Path metadata) throws IOException {
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(
+                "<artifact><groupId>g</groupId><artifactId>a</artifactId><version>1</version>"
+                        + "<path>" + temp.resolve("a.jar") + "</path></artifact>"
+                        + "<artifact><groupId>g</groupId><artifactId>a</artifactId><extension>zip</extension>"
+                        + "<version>1</version><path>" + temp.resolve("a.zip") + "</path></artifact>"));
+        index.build(List.of(metadata));
+
+        Path root = generator.generate(temp.resolve("cache")).getRoot();
+        String descriptor = Files.readString(root.resolve("g/a/1/ivy.xml"));
+
+        assertTrue(descriptor.contains("<artifact name=\"a\" type=\"jar\" ext=\"jar\""), descriptor);
+    }
+
+    @Test
     @DisplayName("reuses the repository for unchanged metadata")
     void reusesRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));

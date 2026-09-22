@@ -381,7 +381,9 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 pom = pom == null ? artifact : pom;
                 return;
             }
-            if (key.getClassifier().isEmpty()) {
+            // The jar is the main artifact; another extension only when the module has no jar.
+            boolean jar = ArtifactKey.DEFAULT_EXTENSION.equals(key.getExtension());
+            if (key.getClassifier().isEmpty() && (main == null || jar)) {
                 main = artifact;
             }
             if (artifact.getPath() != null) {
