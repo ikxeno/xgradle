@@ -21,10 +21,8 @@ import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 import org.altlinux.xgradle.interfaces.resolution.Order;
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
-
-import java.io.File;
-import java.util.List;
+import org.altlinux.xgradle.impl.model.IvyRepository;
+import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 
 /**
  * Configures the system dependency repository for all projects in the build.
@@ -37,10 +35,12 @@ import java.util.List;
 final class ConfigureSystemRepositoryStep implements ResolutionStep {
 
     private final RepositoryManager repositoryManager;
+    private final IvyRepositoryGenerator repositoryGenerator;
 
     @Inject
-    ConfigureSystemRepositoryStep(RepositoryManager repositoryManager) {
+    ConfigureSystemRepositoryStep(RepositoryManager repositoryManager, IvyRepositoryGenerator repositoryGenerator) {
         this.repositoryManager = repositoryManager;
+        this.repositoryGenerator = repositoryGenerator;
     }
 
     @Override
@@ -50,12 +50,9 @@ final class ConfigureSystemRepositoryStep implements ResolutionStep {
 
     @Override
     public void execute(ResolutionContext ctx) {
-        List<File> baseDirs = SystemDepsExtension.getJarsPaths();
+        IvyRepository repository = repositoryGenerator.generate(ctx.getGradle());
         ctx.getGradle().allprojects(project ->
-                repositoryManager.configureDependenciesRepository(
-                        project.getRepositories(),
-                        baseDirs
-                )
+                repositoryManager.configureDependenciesRepository(project.getRepositories(), repository)
         );
     }
 }

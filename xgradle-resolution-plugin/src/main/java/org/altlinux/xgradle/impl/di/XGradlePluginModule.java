@@ -19,9 +19,7 @@ package org.altlinux.xgradle.impl.di;
 import com.google.inject.AbstractModule;
 import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
-import org.altlinux.xgradle.impl.configurators.ConfiguratorsModule;
 import org.altlinux.xgradle.impl.handlers.HandlersModule;
-import org.altlinux.xgradle.impl.indexing.IndexingModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
@@ -49,7 +47,6 @@ public final class XGradlePluginModule extends AbstractModule {
 
         install(new ParsersModule());
 
-        install(new IndexingModule());
         install(new MetadataModule());
 
         install(new ResolversModule());
@@ -64,7 +61,6 @@ public final class XGradlePluginModule extends AbstractModule {
 
         install(new HandlersModule());
 
-        install(new ConfiguratorsModule());
 
         install(new SbomModule());
 

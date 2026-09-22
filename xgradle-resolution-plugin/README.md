@@ -39,6 +39,16 @@ set** (prepared by packaging) rather than downloading from the network.
 
 ---
 
+## How it works
+
+Every ALT Java package installs XMvn metadata (`/usr/share/maven-metadata/*.xml`): the exact
+coordinates of each installed jar and POM, its path, aliases, compat versions and its runtime
+dependencies. The plugin reads this metadata the way XMvn does and generates an ivy repository
+from it in the Gradle user home (`caches/xgradle/ivy`): one `ivy.xml` per installed module,
+built from the metadata dependency list, plus symlinks to the installed files. The repository
+is added first to every project and to plugin management, so Gradle resolves system artifacts
+and their transitive dependencies itself, exactly as Maven does under XMvn.
+
 ## Configuration
 
 xgradle-resolution-plugin is configured via **system properties** or the user config file
@@ -47,23 +57,19 @@ xgradle-resolution-plugin is configured via **system properties** or the user co
 
 | Property | Meaning |
 |---|---|
-| `java.library.dir` | One or more directories containing **system JARs** (comma-separated). |
-| `maven.poms.dir` | Directory containing **system Maven POM metadata**. |
+| `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Defaults to `/usr/share/maven-metadata`. |
 | `disable.xgradle=true` | Completely disables xgradle plugin logic for the current build. |
 | `disable.logo=true` | Disable ASCII banner printing. |
 | `enable.ansi.color=true` | Enable ANSI colors in xgradle logs. |
-| `xgradle.scan.depth` | Max directory scan depth for system artifacts (default `3`). |
 | `generate.sbom` | SBOM format: `spdx` or `cyclonedx`. |
 
 Example config file (`~/.xgradle/xgradle.config`):
 
 ```
-java.library.dir=/usr/share/java,/usr/local/share/java
-maven.poms.dir=/usr/share/maven-poms
+maven.metadata.dir=/usr/share/maven-metadata
 disable.xgradle=false
 disable.logo=true
 enable.ansi.color=true
-xgradle.scan.depth=3
 generate.sbom=spdx
 ```
 
@@ -71,8 +77,7 @@ generate.sbom=spdx
 
 ```bash
 gradle build \
-  -Djava.library.dir=/usr/share/java \
-  -Dmaven.poms.dir=/usr/share/maven-poms \
+  -Dmaven.metadata.dir=/usr/share/maven-metadata \
   -Dgenerate.sbom=cyclonedx \
   --offline
 ```

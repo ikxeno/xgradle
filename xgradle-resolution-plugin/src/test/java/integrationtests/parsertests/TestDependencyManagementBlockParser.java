@@ -20,8 +20,8 @@ import com.google.inject.Injector;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
-import org.altlinux.xgradle.impl.indexing.IndexingModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.utils.logging.LoggingModule;
@@ -54,8 +54,8 @@ public class TestDependencyManagementBlockParser {
                 new LoggingModule(),
                 new CachesModule(),
                 new CollectorsModule(),
-                new IndexingModule(),
                 new MavenModule(),
+                new MetadataModule(),
                 new ParsersModule()
         );
         pomParser = injector.getInstance(PomParser.class);

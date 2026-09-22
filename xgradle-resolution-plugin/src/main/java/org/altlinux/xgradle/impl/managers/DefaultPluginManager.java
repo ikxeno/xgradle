@@ -21,14 +21,12 @@ import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
+import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 
-import java.io.File;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Manages the configuration of plugin resolution for Gradle builds.
@@ -40,39 +38,32 @@ import java.util.stream.Collectors;
 final class DefaultPluginManager  implements PluginManager {
 
     private final RepositoryManager repositoryManager;
+    private final IvyRepositoryGenerator repositoryGenerator;
+    private final MetadataIndex metadataIndex;
     private final PluginProcessor pluginProcessor;
     private final Logger logger;
 
     @Inject
-    DefaultPluginManager(RepositoryManager repositoryManager, PluginProcessor pluginProcessor, Logger logger) {
+    DefaultPluginManager(
+            RepositoryManager repositoryManager,
+            IvyRepositoryGenerator repositoryGenerator,
+            MetadataIndex metadataIndex,
+            PluginProcessor pluginProcessor,
+            Logger logger
+    ) {
         this.repositoryManager = repositoryManager;
+        this.repositoryGenerator = repositoryGenerator;
+        this.metadataIndex = metadataIndex;
         this.pluginProcessor = pluginProcessor;
         this.logger = logger;
     }
 
     public void configure(Settings settings) {
-        List<File> baseDirs = SystemDepsExtension.getJarsPaths();
-        if (baseDirs.isEmpty()) {
+        if (metadataIndex.artifacts().isEmpty()) {
+            logger.warn("No installed artifacts found in XMvn metadata; plugins are not resolved from the system");
             return;
         }
-
-        List<File> validDirs = baseDirs.stream()
-                .filter(dir -> dir != null && dir.isDirectory() && dir.canRead())
-                .collect(Collectors.toList());
-
-        if (validDirs.isEmpty()) {
-            logger.warn("System jars directories do not exist or are not readable: {}", baseDirs);
-            return;
-        }
-
-        if (validDirs.size() != baseDirs.size()) {
-            List<File> invalidDirs = baseDirs.stream()
-                    .filter(dir -> dir == null || !dir.isDirectory() || !dir.canRead())
-                    .collect(Collectors.toList());
-            logger.warn("Skipping invalid system jars directories: {}", invalidDirs);
-        }
-
-        repositoryManager.configurePluginsRepository(settings, validDirs);
+        repositoryManager.configurePluginsRepository(settings, repositoryGenerator.generate(settings.getGradle()));
         pluginProcessor.process(settings);
     }
 }

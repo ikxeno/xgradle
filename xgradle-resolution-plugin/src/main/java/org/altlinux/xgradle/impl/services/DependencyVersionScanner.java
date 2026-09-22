@@ -19,10 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.interfaces.services.ArtifactVerifier;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
-import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
 import java.util.*;
@@ -35,96 +32,13 @@ import java.util.*;
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 @Singleton
-class DependencyVersionScanner implements VersionScanner {
+final class DependencyVersionScanner implements VersionScanner {
 
     private final PomFinder pomFinder;
-    private final PomParser pomParser;
-    private final ArtifactVerifier artifactVerifier;
-    private final Set<String> notFoundDependencies = new HashSet<>();
 
     @Inject
-    DependencyVersionScanner(
-            PomFinder pomFinder,
-            ArtifactVerifier artifactVerifier,
-            PomParser pomParser
-    ) {
+    DependencyVersionScanner(PomFinder pomFinder) {
         this.pomFinder = pomFinder;
-        this.pomParser = pomParser;
-        this.artifactVerifier = artifactVerifier;
-    }
-
-    public Map<String, MavenCoordinate> scanSystemArtifacts(Set<String> projectDependencies) {
-        notFoundDependencies.clear();
-        Map<String, MavenCoordinate> versions = new HashMap<>();
-        Set<String> processedDependencies = new HashSet<>();
-        Queue<String> dependencyQueue = new LinkedList<>(projectDependencies);
-
-        while (!dependencyQueue.isEmpty()) {
-            String dep = dependencyQueue.poll();
-            if (processedDependencies.contains(dep)) continue;
-            processedDependencies.add(dep);
-            if (versions.containsKey(dep)) continue;
-
-            if (dep.endsWith(".gradle.plugin")) {
-                resolveGradlePlugin(dep, versions);
-            } else {
-                resolveRegularDependency(dep, versions);
-            }
-
-            MavenCoordinate coord = versions.get(dep);
-            if (coord != null && coord.getPomPath() != null) {
-                scanProvidedDependencies(coord, dependencyQueue, versions);
-            }
-        }
-        return versions;
-    }
-
-    private void scanProvidedDependencies(MavenCoordinate parentCoord,
-                                          Queue<String> dependencyQueue,
-                                          Map<String, MavenCoordinate> versions) {
-        List<MavenCoordinate> dependencies = pomParser
-                .parseDependencies(parentCoord.getPomPath());
-
-        dependencies.stream()
-                .filter(dep -> MavenScope.PROVIDED.equals(dep.getScope()) || MavenScope.RUNTIME.equals(dep.getScope()))
-                .map(dep -> dep.getGroupId() + ":" + dep.getArtifactId())
-                .filter(depKey -> !versions.containsKey(depKey) && !dependencyQueue.contains(depKey))
-                .forEach(dependencyQueue::add);
-    }
-
-    private void resolveGradlePlugin(String pluginDep, Map<String, MavenCoordinate> versions) {
-        String[] parts = pluginDep.split(":");
-        if (parts.length != 2) return;
-
-        MavenCoordinate pom = findPluginArtifact(parts[0]);
-        if (pom != null && artifactVerifier.verifyArtifactExists(pom)) {
-            versions.put(pluginDep, pom);
-        }
-    }
-
-    private void resolveRegularDependency(String dep, Map<String, MavenCoordinate> versions) {
-        String[] parts = dep.split(":");
-        if (parts.length < 2) return;
-
-        String groupId = parts[0];
-        String artifactId = parts[1];
-
-        if (hasPlaceholder(groupId) || hasPlaceholder(artifactId)) return;
-
-        MavenCoordinate pom = pomFinder.findPomForArtifact(groupId, artifactId);
-        if (pom == null) {
-            notFoundDependencies.add(dep);
-            return;
-        }
-        if (!artifactVerifier.verifyArtifactExists(pom)) {
-            notFoundDependencies.add(dep);
-            return;
-        }
-        versions.put(dep, pom);
-    }
-
-    private boolean hasPlaceholder(String value) {
-        return value != null && value.contains("${");
     }
 
     @Override
@@ -141,7 +55,7 @@ class DependencyVersionScanner implements VersionScanner {
 
         MavenCoordinate found = Arrays.stream(artifactIds)
                 .map(artifactId -> pomFinder.findPomForArtifact(pluginId, artifactId))
-                .filter(coord -> coord != null && artifactVerifier.verifyArtifactExists(coord))
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
         if (found != null) {
@@ -157,7 +71,7 @@ class DependencyVersionScanner implements VersionScanner {
 
             MavenCoordinate extendedFound = Arrays.stream(extendedArtifactIds)
                     .map(artifactId -> pomFinder.findPomForArtifact(pluginId, artifactId))
-                    .filter(coord -> coord != null && artifactVerifier.verifyArtifactExists(coord))
+                    .filter(Objects::nonNull)
                     .findFirst()
                     .orElse(null);
             if (extendedFound != null) {
@@ -175,9 +89,5 @@ class DependencyVersionScanner implements VersionScanner {
                         coord.getArtifactId().contains("plugin"))
                 .findFirst()
                 .orElse(null);
-    }
-
-    public Set<String> getNotFoundDependencies() {
-        return notFoundDependencies;
     }
 }

@@ -22,13 +22,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * @author Ivan Khanas xeno@altlinux.org
@@ -36,102 +34,64 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @DisplayName("SystemDepsExtension contract")
 class SystemDepsExtensionTests {
 
+    private static final String KEY = "maven.metadata.dir";
+    private static final Path DEFAULT_DIR = Path.of("/usr/share/maven-metadata");
+
     @TempDir
     Path tempDir;
 
     private String prevHome;
-    private String prevJavaLib;
+    private String prevMetadataDir;
 
     @BeforeEach
     void setUp() throws Exception {
         prevHome = System.getProperty("user.home");
-        prevJavaLib = System.getProperty("java.library.dir");
+        prevMetadataDir = System.getProperty(KEY);
 
         XGradleConfig.resetForTests();
         System.setProperty("user.home", tempDir.toString());
+        System.clearProperty(KEY);
         Files.createDirectories(tempDir.resolve(".xgradle"));
     }
 
     @AfterEach
     void tearDown() {
         restoreProperty("user.home", prevHome);
-        restoreProperty("java.library.dir", prevJavaLib);
+        restoreProperty(KEY, prevMetadataDir);
         XGradleConfig.resetForTests();
     }
 
     @Test
     @DisplayName("Prefers system property over config")
     void prefersSystemProperty() throws Exception {
-        writeConfig("java.library.dir=/tmp/from-config");
-        System.setProperty("java.library.dir", "/tmp/from-system");
+        writeConfig(KEY + "=/tmp/from-config\n");
+        System.setProperty(KEY, "/tmp/from-system");
 
-        assertEquals("/tmp/from-system", SystemDepsExtension.getJarsPath());
+        assertEquals(List.of(Path.of("/tmp/from-system")), SystemDepsExtension.getMetadataPaths());
     }
 
     @Test
     @DisplayName("Reads config when system property is missing")
     void readsConfigWhenSystemMissing() throws Exception {
-        writeConfig("java.library.dir=/tmp/from-config");
-        System.clearProperty("java.library.dir");
+        writeConfig(KEY + "=/tmp/from-config\n");
 
-        assertEquals("/tmp/from-config", SystemDepsExtension.getJarsPath());
+        assertEquals(List.of(Path.of("/tmp/from-config")), SystemDepsExtension.getMetadataPaths());
     }
 
     @Test
-    @DisplayName("Parses single path from system property")
-    void parsesSinglePath() {
-        System.setProperty("java.library.dir", " /tmp/jars ");
-
-        List<File> paths = SystemDepsExtension.getJarsPaths();
-        assertEquals(List.of(new File("/tmp/jars")), paths);
-    }
-
-    @Test
-    @DisplayName("Parses multiple paths from system property")
+    @DisplayName("Splits, trims and deduplicates comma-separated paths")
     void parsesMultiplePaths() {
-        System.setProperty("java.library.dir", " /tmp/jars1 , /tmp/jars2 ");
+        System.setProperty(KEY, " /a , /b,/a ,");
 
-        List<File> paths = SystemDepsExtension.getJarsPaths();
-        assertEquals(List.of(new File("/tmp/jars1"), new File("/tmp/jars2")), paths);
+        assertEquals(List.of(Path.of("/a"), Path.of("/b")), SystemDepsExtension.getMetadataPaths());
     }
 
     @Test
-    @DisplayName("Parses multiple paths from config")
-    void parsesMultiplePathsFromConfig() throws Exception {
-        writeConfig("java.library.dir=/tmp/jars1, /tmp/jars2");
-        System.clearProperty("java.library.dir");
+    @DisplayName("Falls back to /usr/share/maven-metadata only if it exists")
+    void fallsBackToDefault() {
+        List<Path> expected = Files.isDirectory(DEFAULT_DIR) ? List.of(DEFAULT_DIR) : List.of();
 
-        List<File> paths = SystemDepsExtension.getJarsPaths();
-        assertEquals(List.of(new File("/tmp/jars1"), new File("/tmp/jars2")), paths);
-    }
-
-    @Test
-    @DisplayName("Returns null/empty when properties are missing")
-    void returnsEmptyWhenMissing() {
-        System.clearProperty("java.library.dir");
-        System.clearProperty("maven.poms.dir");
-
-        assertNull(SystemDepsExtension.getJarsPath());
-        assertEquals(List.of(), SystemDepsExtension.getJarsPaths());
-        assertNull(SystemDepsExtension.getPomsPath());
-    }
-
-    @Test
-    @DisplayName("Prefers system property over config for POMs path")
-    void prefersSystemPropertyForPoms() throws Exception {
-        writeConfig("maven.poms.dir=/tmp/poms-config");
-        System.setProperty("maven.poms.dir", "/tmp/poms-system");
-
-        assertEquals("/tmp/poms-system", SystemDepsExtension.getPomsPath());
-    }
-
-    @Test
-    @DisplayName("Reads POMs path from config when system property is missing")
-    void readsPomsConfigWhenSystemMissing() throws Exception {
-        writeConfig("maven.poms.dir=/tmp/poms-config");
-        System.clearProperty("maven.poms.dir");
-
-        assertEquals("/tmp/poms-config", SystemDepsExtension.getPomsPath());
+        assertEquals(expected, SystemDepsExtension.getMetadataPaths());
     }
 
     private void writeConfig(String content) throws Exception {

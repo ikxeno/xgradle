@@ -41,6 +41,7 @@ public final class XGradleConfig {
     private static final Set<String> SUPPORTED_KEYS = Set.of(
             "java.library.dir",
             "maven.poms.dir",
+            "maven.metadata.dir",
             "disable.xgradle",
             "disable.logo",
             "enable.ansi.color",

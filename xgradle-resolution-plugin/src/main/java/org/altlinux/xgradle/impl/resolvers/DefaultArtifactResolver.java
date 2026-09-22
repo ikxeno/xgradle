@@ -17,13 +17,14 @@ package org.altlinux.xgradle.impl.resolvers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.resolvers.ArtifactResolver;
-import org.altlinux.xgradle.interfaces.services.VersionScanner;
-import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.logging.Logger;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 /**
@@ -36,27 +37,41 @@ import java.util.Set;
 @Singleton
 public final class DefaultArtifactResolver implements ArtifactResolver {
 
-    private final VersionScanner versionScanner;
+    private final PomFinder pomFinder;
 
     private Map<String, MavenCoordinate> systemArtifacts = Collections.emptyMap();
     private Set<String> notFound = Collections.emptySet();
 
     @Inject
-    public DefaultArtifactResolver(VersionScanner versionScanner) {
-        this.versionScanner = versionScanner;
+    public DefaultArtifactResolver(PomFinder pomFinder) {
+        this.pomFinder = pomFinder;
     }
 
+    /**
+     * Looks the declared {@code groupId:artifactId} keys up among the installed
+     * artifacts. Transitive dependencies are left to Gradle, which reads them from
+     * the ivy descriptors generated from the same metadata.
+     */
     @Override
     public void resolve(Set<String> dependencies, Logger logger) {
-        systemArtifacts = versionScanner.scanSystemArtifacts(dependencies);
-        notFound = versionScanner.getNotFoundDependencies();
+        Map<String, MavenCoordinate> found = new LinkedHashMap<>();
+        Set<String> missing = new LinkedHashSet<>();
+        dependencies.stream().sorted().forEach(key -> {
+            String[] ga = key.split(":", 3);
+            MavenCoordinate coordinate = ga.length < 2 ? null : pomFinder.findPomForArtifact(ga[0], ga[1]);
+            if (coordinate == null) {
+                missing.add(key);
+            } else {
+                found.put(key, coordinate);
+            }
+        });
+        systemArtifacts = found;
+        notFound = missing;
     }
 
     @Override
     public void filter() {
-        systemArtifacts.entrySet().removeIf(e ->
-                MavenScope.TEST.equals(e.getValue().getScope()) || e.getValue().isBom()
-        );
+        systemArtifacts.entrySet().removeIf(e -> e.getValue().isBom());
     }
 
     @Override

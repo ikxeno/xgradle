@@ -15,18 +15,14 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.altlinux.xgradle.interfaces.indexing.PomIndex;
 import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.model.ConfigurationInfoSnapshot;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
 import org.gradle.api.invocation.Gradle;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -57,8 +53,6 @@ public final class ResolutionContext {
     private final Map<String, String> overrideLogs = new HashMap<>();
     private final Map<String, String> applyLogs = new HashMap<>();
 
-    private final List<Path> pomFiles = new ArrayList<>();
-    private PomIndex pomIndex;
 
     public ResolutionContext(Gradle gradle) {
         this.gradle = gradle;
@@ -129,24 +123,6 @@ public final class ResolutionContext {
 
     public Map<String, String> getApplyLogs() {
         return applyLogs;
-    }
-
-    public List<Path> getPomFiles() {
-        return pomFiles;
-    }
-
-    public PomIndex getPomIndex() {
-        return pomIndex;
-    }
-
-    public void setPomIndex(PomIndex pomIndex) {
-        this.pomIndex = pomIndex;
-    }
-
-    public void addPomFile(Path pomFile) {
-        if (pomFile != null) {
-            pomFiles.add(pomFile);
-        }
     }
 
     public void markNotFound(String dependencyKey) {

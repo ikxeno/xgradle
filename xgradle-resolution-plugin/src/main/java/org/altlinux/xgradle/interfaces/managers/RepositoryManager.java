@@ -16,11 +16,11 @@
 
 package org.altlinux.xgradle.interfaces.managers;
 
+import org.altlinux.xgradle.impl.model.IvyRepository;
+
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
 import org.gradle.api.initialization.Settings;
 
-import java.io.File;
-import java.util.List;
 /**
   * Manages repository.
 
@@ -34,11 +34,11 @@ public interface RepositoryManager {
 
  */
 
-    void configurePluginsRepository(Settings settings, List<File> baseDirs);
+    void configurePluginsRepository(Settings settings, IvyRepository repository);
 /**
   * Configures dependencies repository.
 
  */
 
-    void configureDependenciesRepository(RepositoryHandler repositories, List<File> baseDirs);
+    void configureDependenciesRepository(RepositoryHandler repositories, IvyRepository repository);
 }

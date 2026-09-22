@@ -23,7 +23,6 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.services.ServicesModule;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.interfaces.services.ArtifactVerifier;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.junit.jupiter.api.DisplayName;
@@ -33,9 +32,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -54,43 +50,7 @@ class VersionScannerTests {
     private PomParser pomParser;
 
     @Mock
-    private ArtifactVerifier verifier;
-
-    @Mock
     private PomMetadataReader pomMetadataReader;
-
-    @Test
-    @DisplayName("Scans dependencies and resolves coordinates")
-    void scansDependencies() {
-        MavenCoordinate coord = MavenCoordinate.builder()
-                .groupId("g")
-                .artifactId("a")
-                .version("1")
-                .pomPath(Path.of("a.pom"))
-                .build();
-
-        when(pomFinder.findPomForArtifact("g", "a")).thenReturn(coord);
-        when(verifier.verifyArtifactExists(coord)).thenReturn(true);
-        when(pomParser.parseDependencies(coord.getPomPath())).thenReturn(List.of());
-
-        Injector injector = Guice.createInjector(
-                Modules.override(new ServicesModule()).with(new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(PomFinder.class).toInstance(pomFinder);
-                        bind(PomParser.class).toInstance(pomParser);
-                        bind(ArtifactVerifier.class).toInstance(verifier);
-                        bind(PomMetadataReader.class).toInstance(pomMetadataReader);
-                    }
-                })
-        );
-
-        VersionScanner scanner = injector.getInstance(VersionScanner.class);
-        Map<String, MavenCoordinate> result = scanner.scanSystemArtifacts(Set.of("g:a"));
-
-        assertEquals(coord, result.get("g:a"));
-        assertTrue(scanner.getNotFoundDependencies().isEmpty());
-    }
 
     @Test
     @DisplayName("Finds plugin artifact via standard variants")
@@ -103,7 +63,6 @@ class VersionScannerTests {
                 .build();
 
         when(pomFinder.findPomForArtifact("com.acme.plugin", "com.acme.plugin.gradle.plugin")).thenReturn(coord);
-        when(verifier.verifyArtifactExists(coord)).thenReturn(true);
 
         Injector injector = Guice.createInjector(
                 Modules.override(new ServicesModule()).with(new AbstractModule() {
@@ -111,7 +70,6 @@ class VersionScannerTests {
                     protected void configure() {
                         bind(PomFinder.class).toInstance(pomFinder);
                         bind(PomParser.class).toInstance(pomParser);
-                        bind(ArtifactVerifier.class).toInstance(verifier);
                         bind(PomMetadataReader.class).toInstance(pomMetadataReader);
                     }
                 })

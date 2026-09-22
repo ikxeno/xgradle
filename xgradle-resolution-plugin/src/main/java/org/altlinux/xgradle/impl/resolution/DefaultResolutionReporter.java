@@ -18,7 +18,6 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.interfaces.configurators.ArtifactConfigurator;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionReporter;
 import org.altlinux.xgradle.impl.utils.logging.DependencyLogger;
 
@@ -33,11 +32,9 @@ import org.gradle.api.logging.Logger;
 @Singleton
 final class DefaultResolutionReporter implements ResolutionReporter {
 
-    private final ArtifactConfigurator artifactConfigurator;
 
     @Inject
-    DefaultResolutionReporter(ArtifactConfigurator artifactConfigurator) {
-        this.artifactConfigurator = artifactConfigurator;
+    DefaultResolutionReporter() {
     }
 
     @Override
@@ -56,8 +53,6 @@ final class DefaultResolutionReporter implements ResolutionReporter {
         depLogger.logTestContextDependencies(resolutionContext.getTestContextDependencies(), logger);
 
         depLogger.logSection("===== DEPENDENCY RESOLUTION COMPLETED =====", logger);
-        depLogger.logSection("Added artifacts to configurations", logger);
-        depLogger.logConfigurationArtifacts(artifactConfigurator.getConfigurationArtifacts(), logger);
 
         if (!resolutionContext.getNotFound().isEmpty() || !resolutionContext.getSkipped().isEmpty()) {
             depLogger.logSection("Skipped dependencies", logger);

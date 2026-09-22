@@ -39,6 +39,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,6 +70,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     private final MetadataIndex index;
     private final Logger logger;
+    private final Map<Path, IvyRepository> generated = new HashMap<>();
 
     @Inject
     DefaultIvyRepositoryGenerator(MetadataIndex index, Logger logger) {
@@ -77,7 +79,11 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     }
 
     @Override
-    public IvyRepository generate(Path cacheDirectory) {
+    public synchronized IvyRepository generate(Path cacheDirectory) {
+        return generated.computeIfAbsent(cacheDirectory, this::generateUncached);
+    }
+
+    private IvyRepository generateUncached(Path cacheDirectory) {
         Path root = cacheDirectory.resolve(fingerprint());
         try {
             if (!Files.isRegularFile(root.resolve(COMPLETE_MARKER))) {

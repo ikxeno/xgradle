@@ -15,7 +15,6 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.altlinux.xgradle.interfaces.configurators.ArtifactConfigurator;
 import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
@@ -25,7 +24,6 @@ import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.logging.Logger;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.plugins.ExtraPropertiesExtension;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +39,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,9 +52,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CollectResolvedJarsStep")
 class CollectResolvedJarsStepTests {
-
-    @Mock
-    private ArtifactConfigurator artifactConfigurator;
 
     @Mock
     private Gradle gradle;
@@ -90,35 +86,17 @@ class CollectResolvedJarsStepTests {
     @Mock
     private ResolvedArtifact textArtifact;
 
-    @Mock
-    private Logger logger;
 
     @Test
-    @DisplayName("Returns without touching Gradle when configuration map is empty")
-    void returnsEarlyWhenConfigurationMapEmpty() {
-        when(artifactConfigurator.getConfigurationArtifacts()).thenReturn(Map.of());
-
-        ResolutionContext context = new ResolutionContext(gradle);
-        CollectResolvedJarsStep step = new CollectResolvedJarsStep(artifactConfigurator);
-        step.execute(context);
-
-        verifyNoInteractions(gradle);
-    }
-
-    @Test
-    @DisplayName("Collects only .jar files from resolved artifacts")
+    @DisplayName("Collects only .jar files resolved by any resolvable configuration")
     void collectsOnlyJarFiles(@TempDir Path tempDir) throws Exception {
-        when(artifactConfigurator.getConfigurationArtifacts())
-                .thenReturn(Map.of("runtimeClasspath", Set.of("org.example:lib:1.0.0")));
-
         when(gradle.getRootProject()).thenReturn(rootProject);
         when(rootProject.getAllprojects()).thenReturn(Set.of(project));
 
         wireExtraProperties(rootProject);
 
-        when(project.getLogger()).thenReturn(logger);
         when(project.getConfigurations()).thenReturn(configurationContainer);
-        when(configurationContainer.findByName("runtimeClasspath")).thenReturn(configuration);
+        when(configurationContainer.stream()).thenReturn(Stream.of(configuration));
         when(configuration.isCanBeResolved()).thenReturn(true);
         when(configuration.getIncoming()).thenReturn(incoming);
         when(configuration.getResolvedConfiguration()).thenReturn(resolvedConfiguration);
@@ -139,7 +117,7 @@ class CollectResolvedJarsStepTests {
         );
 
         ResolutionContext context = new ResolutionContext(gradle);
-        CollectResolvedJarsStep step = new CollectResolvedJarsStep(artifactConfigurator);
+        CollectResolvedJarsStep step = new CollectResolvedJarsStep();
         step.execute(context);
 
         Set<File> resolved = ResolvedArtifactsRegistry.get(rootProject);

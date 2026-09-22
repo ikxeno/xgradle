@@ -24,7 +24,6 @@ import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.services.ServicesModule;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
-import org.altlinux.xgradle.interfaces.services.ArtifactVerifier;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
@@ -52,9 +51,6 @@ class PomMetadataReaderTests {
 
     @Mock
     private VersionScanner versionScanner;
-
-    @Mock
-    private ArtifactVerifier artifactVerifier;
 
     @Mock
     private PomFinder pomFinder;
@@ -103,7 +99,6 @@ class PomMetadataReaderTests {
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
                         bind(VersionScanner.class).toInstance(versionScanner);
-                        bind(ArtifactVerifier.class).toInstance(artifactVerifier);
                         bind(PomFinder.class).toInstance(pomFinder);
                     }
                 })

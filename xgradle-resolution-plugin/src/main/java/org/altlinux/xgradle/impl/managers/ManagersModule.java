@@ -18,8 +18,6 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.AbstractModule;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
-import org.altlinux.xgradle.interfaces.managers.ScopeManager;
-import org.altlinux.xgradle.interfaces.managers.TransitiveDependencyManager;
 /**
  * Guice module for Managers bindings.
  *
@@ -32,7 +30,5 @@ public final class ManagersModule extends AbstractModule {
     protected  void configure() {
         bind(RepositoryManager.class).to(DefaultRepositoryManager.class);
         bind(PluginManager.class).to(DefaultPluginManager.class);
-        bind(TransitiveDependencyManager.class).to(DefaultTransitiveDependencyManager.class);
-        bind(ScopeManager.class).to(MavenScopeManager.class);
     }
 }

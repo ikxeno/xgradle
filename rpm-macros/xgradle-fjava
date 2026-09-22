@@ -39,7 +39,7 @@
 %__gradle gradle
 
 # Configure repositories.
-%_xgradleflags -Dmaven.poms.dir=%_mavenpomdir -Djava.library.dir=%_javadir
+%_xgradleflags -Dmaven.metadata.dir=%_mavenmetadatadir
 
 # Run Gradle publication task.
 %gradle_publish %__gradle publishToMavenLocal --offline %_xgradleflags

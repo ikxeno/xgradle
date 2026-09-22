@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -112,6 +113,8 @@ public class E2ETests {
         Path testLibPath = testProjectDir.toPath().resolve("testlibs");
         copyDirectory(testLibDir.toPath(), testLibPath);
         String testLibAbsolutePath = testLibPath.toFile().getAbsolutePath();
+        Path metadata = testLibPath.resolve("maven-metadata").resolve("testlibs.xml");
+        Files.writeString(metadata, Files.readString(metadata).replace("@TESTLIBS@", testLibAbsolutePath));
 
         BuildResult result = GradleRunner.create()
                 .withProjectDir(testProjectDir)
@@ -119,8 +122,7 @@ public class E2ETests {
                         "--gradle-user-home", gradleUserHome.getAbsolutePath(),
                         "--init-script", initScript.getAbsolutePath(),
                         "build",
-                        "-Dmaven.poms.dir=" + testLibAbsolutePath,
-                        "-Djava.library.dir=" + testLibAbsolutePath,
+                        "-Dmaven.metadata.dir=" + metadata.getParent(),
                         "--offline"
                 )
                 .forwardOutput()
@@ -130,6 +132,15 @@ public class E2ETests {
 
         assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":build"))
                 .getOutcome());
+        assertTrue(generatedIvyModule(gradleUserHome, "commons-cli/commons-cli/1.11.0"),
+                "dependencies must be resolved through the ivy repository generated from XMvn metadata");
+    }
+
+    private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {
+        Path cache = gradleUserHome.toPath().resolve("caches/xgradle/ivy");
+        try (Stream<Path> repositories = Files.list(cache)) {
+            return repositories.anyMatch(repo -> Files.isRegularFile(repo.resolve(module).resolve("ivy.xml")));
+        }
     }
 
     private String loadResource(String resourceName) throws IOException {

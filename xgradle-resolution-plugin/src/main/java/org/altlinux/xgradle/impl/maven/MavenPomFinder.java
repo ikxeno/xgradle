@@ -18,53 +18,64 @@ package org.altlinux.xgradle.impl.maven;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.interfaces.indexing.PomIndex;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
+import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.impl.model.XmvnArtifact;
+import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
-import org.gradle.api.logging.Logger;
-
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 /**
- * Finder for Maven POM.
- * Implements {@link PomFinder}.
+ * Finds installed modules in the XMvn metadata index, the way XMvn resolves
+ * a dependency on the default (non-compat) version.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-
 @Singleton
 final class MavenPomFinder implements PomFinder {
 
-    private final PomIndex pomIndex;
-    private final Logger logger;
+    private static final String POM = "pom";
+
+    private final MetadataIndex index;
 
     @Inject
-    MavenPomFinder(PomIndex pomIndex, Logger logger) {
-        this.pomIndex = pomIndex;
-        this.logger = logger;
-
-        String pomsPath = SystemDepsExtension.getPomsPath();
-        if (pomsPath == null || pomsPath.isBlank()) {
-            return;
-        }
-        Path root = Paths.get(pomsPath);
-        try {
-            this.pomIndex.build(root);
-        } catch (RuntimeException e) {
-            logger.lifecycle("Failed to build POM index from {}: {}", root, e.getMessage());
-        }
+    MavenPomFinder(MetadataIndex index) {
+        this.index = index;
     }
 
     @Override
     public MavenCoordinate findPomForArtifact(String groupId, String artifactId) {
-        return pomIndex.find(groupId, artifactId).orElse(null);
+        ArtifactKey jar = ArtifactKey.jar(groupId, artifactId, ArtifactKey.SYSTEM_VERSION);
+        ArtifactKey pom = new ArtifactKey(groupId, artifactId, POM, "", ArtifactKey.SYSTEM_VERSION);
+
+        Optional<XmvnArtifact> jarArtifact = index.resolve(jar).filter(artifact -> artifact.getPath() != null);
+        Optional<XmvnArtifact> pomArtifact = index.resolve(pom);
+
+        return jarArtifact.or(() -> pomArtifact)
+                .map(artifact -> MavenCoordinate.builder()
+                        .groupId(groupId)
+                        .artifactId(artifactId)
+                        .version(artifact.getVersion())
+                        .packaging(jarArtifact.isPresent() ? ArtifactKey.DEFAULT_EXTENSION : POM)
+                        .pomPath(pomArtifact.map(XmvnArtifact::getPath).orElse(null))
+                        .build())
+                .orElse(null);
     }
 
     @Override
     public List<MavenCoordinate> findAllPomsForGroup(String groupId) {
-        return pomIndex.findAllForGroup(groupId);
+        return index.entries().keySet().stream()
+                .filter(key -> key.getGroupId().equals(groupId) && key.isSystemVersion())
+                .map(ArtifactKey::getArtifactId)
+                .distinct()
+                .map(artifactId -> findPomForArtifact(groupId, artifactId))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(MavenCoordinate::getArtifactId))
+                .collect(Collectors.toList());
     }
 }

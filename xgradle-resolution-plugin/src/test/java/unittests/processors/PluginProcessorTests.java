@@ -24,7 +24,6 @@ import org.altlinux.xgradle.impl.processors.ProcessorsModule;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.altlinux.xgradle.interfaces.processors.BomProcessor;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
-import org.altlinux.xgradle.interfaces.processors.TransitiveProcessor;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
@@ -61,9 +60,6 @@ class PluginProcessorTests {
 
     @Mock
     private BomProcessor bomProcessor;
-
-    @Mock
-    private TransitiveProcessor transitiveProcessor;
 
     @Mock
     private Logger logger;
@@ -119,7 +115,6 @@ class PluginProcessorTests {
                         bind(VersionScanner.class).toInstance(scanner);
                         bind(PomParser.class).toInstance(pomParser);
                         bind(BomProcessor.class).toInstance(bomProcessor);
-                        bind(TransitiveProcessor.class).toInstance(transitiveProcessor);
                         bind(Logger.class).toInstance(logger);
                     }
                 })

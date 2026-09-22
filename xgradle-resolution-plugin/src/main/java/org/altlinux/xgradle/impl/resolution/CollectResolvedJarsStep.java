@@ -17,16 +17,13 @@ package org.altlinux.xgradle.impl.resolution;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.altlinux.xgradle.interfaces.configurators.ArtifactConfigurator;
 import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ResolvedArtifact;
-import org.gradle.api.logging.Logger;
 
 import java.io.File;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,11 +36,9 @@ import java.util.Set;
 @Order(1100)
 final class CollectResolvedJarsStep implements ResolutionStep {
 
-    private final ArtifactConfigurator artifactConfigurator;
 
     @Inject
-    CollectResolvedJarsStep(ArtifactConfigurator artifactConfigurator) {
-        this.artifactConfigurator = artifactConfigurator;
+    CollectResolvedJarsStep() {
     }
 
     @Override
@@ -53,41 +48,28 @@ final class CollectResolvedJarsStep implements ResolutionStep {
 
     @Override
     public void execute(ResolutionContext resolutionContext) {
-        Map<String, Set<String>> configurationArtifacts =
-                artifactConfigurator.getConfigurationArtifacts();
-        if (configurationArtifacts == null || configurationArtifacts.isEmpty()) {
-            return;
-        }
-
         Set<File> resolvedJars = ResolvedArtifactsRegistry.getOrCreate(
                 resolutionContext.getGradle()
         );
 
-        resolutionContext.getGradle().getRootProject().getAllprojects().forEach(project -> {
-            Logger logger = project.getLogger();
-            configurationArtifacts.keySet().stream()
-                    .filter(configName -> configName != null && !configName.isBlank())
-                    .forEach(configName -> {
-                        Configuration configuration = project.getConfigurations().findByName(configName);
-                        if (configuration == null || !configuration.isCanBeResolved()) {
-                            return;
-                        }
-                        configuration.getIncoming().afterResolve(resolvable -> {
+        resolutionContext.getGradle().getRootProject().getAllprojects().forEach(project ->
+                project.getConfigurations().stream()
+                        .filter(Configuration::isCanBeResolved)
+                        .forEach(configuration -> configuration.getIncoming().afterResolve(resolvable -> {
                             try {
                                 configuration.getResolvedConfiguration().getResolvedArtifacts().stream()
                                         .map(ResolvedArtifact::getFile)
                                         .filter(file -> file != null && file.isFile() && isJar(file))
                                         .forEach(resolvedJars::add);
                             } catch (RuntimeException exception) {
-                                logger.debug(
+                                project.getLogger().debug(
                                         "Failed to collect resolved jars for '{}': {}",
-                                        configName,
+                                        configuration.getName(),
                                         exception.getMessage()
                                 );
                             }
-                        });
-                    });
-        });
+                        }))
+        );
     }
 
     private boolean isJar(File file) {

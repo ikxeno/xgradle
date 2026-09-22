@@ -18,75 +18,92 @@ package unittests.maven;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.util.Modules;
+
+import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.altlinux.xgradle.interfaces.indexing.PomIndex;
+import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+
 import org.gradle.api.logging.Logger;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 
 /**
+ * Tests {@link PomFinder} against XMvn metadata taken from ALT Sisyphus packages.
+ *
  * @author Ivan Khanas xeno@altlinux.org
  */
-@ExtendWith(MockitoExtension.class)
-@DisplayName("PomFinder contract")
+@DisplayName("PomFinder over XMvn metadata")
 class PomFinderTests {
 
-    @Mock
-    private PomIndex pomIndex;
+    private PomFinder finder;
 
-    @Mock
-    private Logger logger;
+    @BeforeEach
+    void setUp() throws URISyntaxException {
+        Injector injector = Guice.createInjector(
+                new MetadataModule(), new MavenModule(), new ParsersModule(), new CachesModule(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(mock(Logger.class));
+                    }
+                });
+        injector.getInstance(MetadataIndex.class).build(List.of(
+                Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI())));
+        finder = injector.getInstance(PomFinder.class);
+    }
 
     @Test
-    @DisplayName("Delegates to PomIndex and builds on construction")
-    void delegatesToIndex(@TempDir Path tempDir) {
-        MavenCoordinate coord = MavenCoordinate.builder()
-                .groupId("g")
-                .artifactId("a")
-                .version("1")
-                .build();
+    @DisplayName("finds an installed jar with its version and POM path")
+    void findsJar() {
+        MavenCoordinate guava = finder.findPomForArtifact("com.google.guava", "guava");
 
-        when(pomIndex.find("g", "a")).thenReturn(Optional.of(coord));
-        when(pomIndex.findAllForGroup("g")).thenReturn(List.of(coord));
+        assertEquals("33.5.0-jre", guava.getVersion());
+        assertEquals("jar", guava.getPackaging());
+        assertEquals(Path.of("/usr/share/maven-poms/guava/guava.pom"), guava.getPomPath());
+    }
 
-        String prev = System.getProperty("maven.poms.dir");
-        System.setProperty("maven.poms.dir", tempDir.toString());
-        try {
-            Injector injector = Guice.createInjector(
-                    Modules.override(new MavenModule()).with(new AbstractModule() {
-                        @Override
-                        protected void configure() {
-                            bind(PomIndex.class).toInstance(pomIndex);
-                            bind(Logger.class).toInstance(logger);
-                        }
-                    })
-            );
+    @Test
+    @DisplayName("finds a POM-only module as a BOM")
+    void findsPomOnlyModule() {
+        assertTrue(finder.findPomForArtifact("com.google.guava", "guava-parent").isBom());
+    }
 
-            PomFinder finder = injector.getInstance(PomFinder.class);
+    @Test
+    @DisplayName("finds an artifact through its alias")
+    void findsAlias() {
+        MavenCoordinate alias = finder.findPomForArtifact("org.hamcrest", "hamcrest-core");
 
-            verify(pomIndex).build(Path.of(tempDir.toString()));
-            assertEquals(coord, finder.findPomForArtifact("g", "a"));
-            assertEquals(List.of(coord), finder.findAllPomsForGroup("g"));
-        } finally {
-            if (prev != null) {
-                System.setProperty("maven.poms.dir", prev);
-            } else {
-                System.clearProperty("maven.poms.dir");
-            }
-        }
+        assertEquals("hamcrest-core", alias.getArtifactId());
+        assertEquals("3.0", alias.getVersion());
+    }
+
+    @Test
+    @DisplayName("returns null for an artifact that is not installed")
+    void returnsNullWhenMissing() {
+        assertNull(finder.findPomForArtifact("org.example", "absent"));
+    }
+
+    @Test
+    @DisplayName("lists the modules of a group sorted by artifactId")
+    void listsGroup() {
+        assertEquals(List.of("failureaccess", "guava", "guava-parent"),
+                finder.findAllPomsForGroup("com.google.guava").stream()
+                        .map(MavenCoordinate::getArtifactId)
+                        .collect(Collectors.toList()));
     }
 }

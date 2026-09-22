@@ -17,6 +17,8 @@ package org.altlinux.xgradle.interfaces.metadata;
 
 import org.altlinux.xgradle.impl.model.IvyRepository;
 
+import org.gradle.api.invocation.Gradle;
+
 import java.nio.file.Path;
 
 /**
@@ -35,4 +37,11 @@ public interface IvyRepositoryGenerator {
      * or reuses one written earlier for the same metadata.
      */
     IvyRepository generate(Path cacheDirectory);
+
+    /**
+     * Generates the repository in the Gradle user home cache of the given build.
+     */
+    default IvyRepository generate(Gradle gradle) {
+        return generate(gradle.getGradleUserHomeDir().toPath().resolve("caches").resolve("xgradle").resolve("ivy"));
+    }
 }
