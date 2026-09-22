@@ -123,6 +123,8 @@ public class E2ETests {
                         "--init-script", initScript.getAbsolutePath(),
                         "build",
                         "-Dmaven.metadata.dir=" + metadata.getParent(),
+                        "-Dmaven.poms.dir=" + testLibAbsolutePath,
+                        "-Djava.library.dir=" + testLibAbsolutePath,
                         "--offline"
                 )
                 .forwardOutput()

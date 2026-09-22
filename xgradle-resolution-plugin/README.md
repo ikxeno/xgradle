@@ -47,7 +47,10 @@ coordinates of each installed jar and POM, its path, aliases (`%mvn_alias`), com
 and `ignoreDuplicateMetadata` from the XMvn configuration (the project's `.xmvn/`, then the XDG
 user and system directories), resolves artifacts with the same rules as XMvn and generates an ivy repository
 from it in the Gradle user home (`caches/xgradle/ivy`): one `ivy.xml` per installed module,
-built from the metadata dependency list, plus symlinks to the installed files. The repository
+built from the metadata dependency list, plus symlinks to the installed files. Packages installed
+without XMvn metadata, as xgradle-cli installs Gradle-built packages, are read from their POMs
+(`/usr/share/maven-poms/X/Y.pom` with the jar `/usr/share/java/X/Y.jar`); XMvn metadata wins
+whenever both describe a module. The repository
 is added first to every project and to plugin management, so Gradle resolves system artifacts
 and their transitive dependencies itself, exactly as Maven does under XMvn.
 
@@ -60,6 +63,8 @@ xgradle-resolution-plugin is configured via **system properties** or the user co
 | Property | Meaning |
 |---|---|
 | `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Overrides the metadata repositories of the XMvn configuration (on ALT `/usr/share/maven-metadata` and `/usr/share/javapackages-bootstrap/maven-metadata`). |
+| `maven.poms.dir` | Root of POMs installed **without** XMvn metadata, such as packages installed by xgradle-cli (default `/usr/share/maven-poms`). |
+| `java.library.dir` | Root of the jars matching those POMs: `maven.poms.dir/X/Y.pom` pairs with `java.library.dir/X/Y.jar` (default `/usr/share/java`). |
 | `disable.xgradle=true` | Completely disables xgradle plugin logic for the current build. |
 | `disable.logo=true` | Disable ASCII banner printing. |
 | `enable.ansi.color=true` | Enable ANSI colors in xgradle logs. |

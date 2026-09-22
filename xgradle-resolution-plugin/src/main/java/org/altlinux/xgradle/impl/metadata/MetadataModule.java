@@ -17,9 +17,11 @@ package org.altlinux.xgradle.impl.metadata;
 
 import com.google.inject.AbstractModule;
 
+import org.altlinux.xgradle.interfaces.metadata.InstalledArtifactsLoader;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
+import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
 
 /**
  * Guice module for XMvn metadata bindings.
@@ -33,5 +35,7 @@ public final class MetadataModule extends AbstractModule {
         bind(MetadataReader.class).to(DefaultMetadataReader.class);
         bind(MetadataIndex.class).to(DefaultMetadataIndex.class);
         bind(IvyRepositoryGenerator.class).to(DefaultIvyRepositoryGenerator.class);
+        bind(PomArtifactReader.class).to(DefaultPomArtifactReader.class);
+        bind(InstalledArtifactsLoader.class).to(DefaultInstalledArtifactsLoader.class);
     }
 }

@@ -22,6 +22,7 @@ import com.google.inject.Injector;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
@@ -56,6 +57,7 @@ class FindMissingTransitivesStepTests {
             @Override
             protected void configure() {
                 bind(Logger.class).toInstance(mock(Logger.class));
+                bind(PomParser.class).toInstance(mock(PomParser.class));
             }
         });
         injector.getInstance(MetadataIndex.class).build(List.of(metadata));

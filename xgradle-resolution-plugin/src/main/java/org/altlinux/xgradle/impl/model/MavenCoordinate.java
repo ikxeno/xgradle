@@ -34,6 +34,7 @@ public final class MavenCoordinate {
     private final MavenScope scope;
     private final Path pomPath;
     private final boolean testContext;
+    private final boolean optional;
 
     MavenCoordinate(MavenCoordinateBuilder builder) {
         this.groupId = builder.groupId;
@@ -43,6 +44,7 @@ public final class MavenCoordinate {
         this.scope = builder.scope;
         this.pomPath = builder.pomPath;
         this.testContext = builder.testContext;
+        this.optional = builder.optional;
     }
 
     public static MavenCoordinateBuilder builder() {
@@ -89,6 +91,13 @@ public final class MavenCoordinate {
 
     public boolean isTestContext() {
         return testContext;
+    }
+
+    /**
+     * Whether this coordinate is an optional dependency; Maven does not follow those transitively.
+     */
+    public boolean isOptional() {
+        return optional;
     }
 
     @Override

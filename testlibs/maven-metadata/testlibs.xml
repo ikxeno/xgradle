@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- XMvn metadata for the E2E test libraries. E2ETests replaces @TESTLIBS@
-     with the absolute path of its copy of this directory. -->
+     with the absolute path of its copy of this directory. The shadow plugin is
+     deliberately missing: like packages installed by xgradle-cli, it has only a
+     POM and a jar. -->
 <metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
   <artifacts>
     <artifact>
@@ -55,19 +57,6 @@
           <requestedVersion>2.41.0</requestedVersion>
         </dependency>
       </dependencies>
-    </artifact>
-    <artifact>
-      <groupId>com.gradleup.shadow</groupId>
-      <artifactId>shadow-gradle-plugin</artifactId>
-      <version>8.3.8</version>
-      <path>@TESTLIBS@/shadow-gradle-plugin/shadow-gradle-plugin.jar</path>
-    </artifact>
-    <artifact>
-      <groupId>com.gradleup.shadow</groupId>
-      <artifactId>shadow-gradle-plugin</artifactId>
-      <extension>pom</extension>
-      <version>8.3.8</version>
-      <path>@TESTLIBS@/shadow-gradle-plugin/shadow-gradle-plugin.pom</path>
     </artifact>
   </artifacts>
 </metadata>

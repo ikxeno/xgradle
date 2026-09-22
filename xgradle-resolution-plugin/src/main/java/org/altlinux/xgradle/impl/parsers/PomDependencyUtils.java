@@ -47,6 +47,7 @@ final class PomDependencyUtils {
                                 ? dependency.getType()
                                 : MavenPackaging.JAR.getPackaging()
                 )
+                .optional(Boolean.parseBoolean(dependency.getOptional()))
                 .build();
     }
 

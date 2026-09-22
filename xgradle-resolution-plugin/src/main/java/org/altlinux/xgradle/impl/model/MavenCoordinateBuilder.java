@@ -34,6 +34,7 @@ public final class MavenCoordinateBuilder {
     MavenScope scope = MavenScope.COMPILE;
     Path pomPath;
     boolean testContext;
+    boolean optional;
 
     public MavenCoordinateBuilder() {
     }
@@ -46,6 +47,7 @@ public final class MavenCoordinateBuilder {
         this.scope = src.getScope();
         this.pomPath = src.getPomPath();
         this.testContext = src.isTestContext();
+        this.optional = src.isOptional();
     }
 
     public MavenCoordinateBuilder groupId(String groupId) {
@@ -85,6 +87,11 @@ public final class MavenCoordinateBuilder {
 
     public MavenCoordinateBuilder testContext(boolean testContext) {
         this.testContext = testContext;
+        return this;
+    }
+
+    public MavenCoordinateBuilder optional(boolean optional) {
+        this.optional = optional;
         return this;
     }
 

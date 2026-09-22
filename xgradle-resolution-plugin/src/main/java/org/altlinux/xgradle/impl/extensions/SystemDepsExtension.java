@@ -38,9 +38,36 @@ public class SystemDepsExtension {
 
     private static final String MAVEN_METADATA_DIR_KEY = "maven.metadata.dir";
     private static final Path DEFAULT_METADATA_DIR = Path.of("/usr/share/maven-metadata");
+    private static final String MAVEN_POMS_DIR_KEY = "maven.poms.dir";
+    private static final Path DEFAULT_POMS_DIR = Path.of("/usr/share/maven-poms");
+    private static final String JAVA_LIBRARY_DIR_KEY = "java.library.dir";
+    private static final Path DEFAULT_JAVA_DIR = Path.of("/usr/share/java");
     private static final String PATH_SEPARATOR = ",";
     private static final Logger LOGGER = Logging.getLogger(SystemDepsExtension.class);
     private static final AtomicBoolean MISSING_METADATA_PATH_LOGGED = new AtomicBoolean(false);
+
+    /**
+     * Root of POMs installed without XMvn metadata: {@code maven.poms.dir}, default
+     * {@code /usr/share/maven-poms}.
+     */
+    public static Path getPomsDir() {
+        return property(MAVEN_POMS_DIR_KEY).map(Path::of).orElse(DEFAULT_POMS_DIR);
+    }
+
+    /**
+     * Root of the jars matching those POMs: {@code java.library.dir}, default
+     * {@code /usr/share/java}.
+     */
+    public static Path getJavaDir() {
+        return property(JAVA_LIBRARY_DIR_KEY).map(Path::of).orElse(DEFAULT_JAVA_DIR);
+    }
+
+    private static Optional<String> property(String key) {
+        return Optional.ofNullable(System.getProperty(key))
+                .or(() -> Optional.ofNullable(XGradleConfig.getConfigProperty(key)))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty());
+    }
 
     /**
      * XMvn metadata locations: {@code maven.metadata.dir} (comma-separated) from a
@@ -50,9 +77,7 @@ public class SystemDepsExtension {
      * explicitly is returned even if it is missing, so that reading it fails loudly.
      */
     public static List<Path> getMetadataPaths(XmvnConfiguration xmvn) {
-        Optional<String> configured = Optional.ofNullable(System.getProperty(MAVEN_METADATA_DIR_KEY))
-                .or(() -> Optional.ofNullable(XGradleConfig.getConfigProperty(MAVEN_METADATA_DIR_KEY)))
-                .filter(value -> !value.isBlank());
+        Optional<String> configured = property(MAVEN_METADATA_DIR_KEY);
         if (configured.isPresent()) {
             return Arrays.stream(configured.get().split(PATH_SEPARATOR))
                     .map(String::trim)

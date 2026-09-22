@@ -57,13 +57,17 @@ final class DefaultMetadataIndex implements MetadataIndex {
 
     @Override
     public void build(List<Path> locations, boolean ignoreDuplicates) {
-        List<XmvnArtifact> read = reader.read(locations);
+        load(reader.read(locations), ignoreDuplicates);
+    }
+
+    @Override
+    public void load(List<XmvnArtifact> read, boolean ignoreDuplicates) {
         Map<ArtifactKey, XmvnArtifact> index = new LinkedHashMap<>();
         read.forEach(artifact -> add(index, artifact, ignoreDuplicates));
 
         artifacts = List.copyOf(read);
         byKey = Collections.unmodifiableMap(index);
-        logger.info("Indexed {} artifacts from XMvn metadata in {}", artifacts.size(), locations);
+        logger.info("Indexed {} installed artifacts", artifacts.size());
     }
 
     /**

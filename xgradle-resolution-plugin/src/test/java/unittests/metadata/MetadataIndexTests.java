@@ -24,6 +24,7 @@ import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
@@ -69,6 +70,7 @@ class MetadataIndexTests {
             @Override
             protected void configure() {
                 bind(Logger.class).toInstance(logger);
+                bind(PomParser.class).toInstance(mock(PomParser.class));
             }
         });
         index = injector.getInstance(MetadataIndex.class);

@@ -24,6 +24,7 @@ import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.impl.resolvers.DefaultDependencySubstitutor;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
@@ -77,6 +78,7 @@ class DependencySubstitutorTests {
             @Override
             protected void configure() {
                 bind(Logger.class).toInstance(mock(Logger.class));
+                bind(PomParser.class).toInstance(mock(PomParser.class));
             }
         });
         MetadataIndex index = injector.getInstance(MetadataIndex.class);

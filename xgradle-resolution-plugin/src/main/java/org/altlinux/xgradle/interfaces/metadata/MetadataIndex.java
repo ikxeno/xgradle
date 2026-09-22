@@ -40,6 +40,11 @@ public interface MetadataIndex {
     void build(List<Path> locations, boolean ignoreDuplicates);
 
     /**
+     * Replaces the index content with the given artifacts, in the given order.
+     */
+    void load(List<XmvnArtifact> artifacts, boolean ignoreDuplicates);
+
+    /**
      * Builds the index with XMvn's default, {@code ignoreDuplicateMetadata=true}.
      */
     default void build(List<Path> locations) {
