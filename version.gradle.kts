@@ -48,18 +48,21 @@ tasks.withType<ProcessResources>().configureEach {
 
     when (project.path) {
         ":xgradle-resolution-plugin" -> {
+            val version = rootProject.version.toString()
+
             filesMatching("logo.txt") {
-                filter { line -> line.replace("@version@", rootProject.version.toString()) }
+                filter { line -> line.replace("@version@", version) }
             }
         }
 
         ":xgradle-cli" -> {
+            val projectVersion = project.version.toString()
             val commitId = project.gitCommitIdProvider()
             val time = buildTime()
 
             filesMatching("application.properties") {
                 expand(
-                    "projectVersion" to project.version.toString(),
+                    "projectVersion" to projectVersion,
                     "gitCommitHash" to commitId.get(),
                     "projectBuildTime" to time
                 )
