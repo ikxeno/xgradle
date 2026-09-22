@@ -40,6 +40,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -187,6 +190,28 @@ class IvyRepositoryGeneratorTests {
         assertNotEquals(ignoring, keeping);
         assertFalse(Files.exists(ignoring.resolve("g/a/1/ivy.xml")), "both claims are dropped");
         assertEquals(temp.resolve("b.jar"), Files.readSymbolicLink(keeping.resolve("g/a/1/a-1.jar")));
+    }
+
+    @Test
+    @DisplayName("removes repositories unused for a week and keeps recent ones")
+    void removesUnusedRepositories(@TempDir Path metadata) throws IOException {
+        Path cache = Files.createDirectories(temp.resolve("cache"));
+        Path stale = Files.createDirectories(cache.resolve("stale"));
+        Path recent = Files.createDirectories(cache.resolve("recent"));
+        Path deadTmp = Files.createDirectories(cache.resolve("stale.12345"));
+        Files.createFile(stale.resolve(".complete"));
+        Files.createFile(recent.resolve(".complete"));
+        FileTime weekAgo = FileTime.from(Instant.now().minus(Duration.ofDays(8)));
+        Files.setLastModifiedTime(stale.resolve(".complete"), weekAgo);
+        Files.setLastModifiedTime(deadTmp, weekAgo);
+
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        index.build(List.of(metadata));
+        Path current = generator.generate(cache).getRoot();
+
+        try (java.util.stream.Stream<Path> entries = Files.list(cache)) {
+            assertEquals(Set.of(current, recent), entries.collect(Collectors.toSet()));
+        }
     }
 
     @Test

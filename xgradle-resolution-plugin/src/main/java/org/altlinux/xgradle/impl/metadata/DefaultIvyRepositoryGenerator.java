@@ -35,8 +35,11 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -66,6 +69,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     private static final String FORMAT_VERSION = "2";
     private static final String COMPLETE_MARKER = ".complete";
     private static final String CONF = "default";
+    private static final Duration UNUSED_FOR = Duration.ofDays(7);
 
     private final MetadataIndex index;
     private final Logger logger;
@@ -86,12 +90,16 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         Collection<Module> modules = modules().values();
         Path root = cacheDirectory.resolve(fingerprint(modules));
         try {
-            if (!isComplete(root)) {
+            if (isComplete(root)) {
+                Files.setLastModifiedTime(root.resolve(COMPLETE_MARKER), FileTime.from(Instant.now()));
+            } else {
                 write(cacheDirectory, root, modules);
             }
         } catch (IOException | UncheckedIOException e) {
             throw new GradleException("Cannot write the system ivy repository to " + root, e);
         }
+        removeUnused(cacheDirectory, root);
+
         List<String> missing = modules.stream()
                 .flatMap(module -> missingDependencies(module).stream())
                 .sorted()
@@ -112,6 +120,41 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             if (Files.exists(tmp)) {
                 deleteRecursively(tmp);
             }
+        }
+    }
+
+    /**
+     * Removes repositories no build has used for {@link #UNUSED_FOR}, and
+     * temporary directories of builds that died that long ago. A build marks
+     * its repository as used by touching the complete marker.
+     */
+    private void removeUnused(Path cacheDirectory, Path current) {
+        Instant cutoff = Instant.now().minus(UNUSED_FOR);
+        try (Stream<Path> dirs = Files.list(cacheDirectory)) {
+            dirs.filter(dir -> !dir.equals(current))
+                    .filter(dir -> lastUsed(dir).isBefore(cutoff))
+                    .collect(Collectors.toList())
+                    .forEach(this::removeQuietly);
+        } catch (IOException e) {
+            logger.warn("Cannot clean up old system ivy repositories in {}: {}", cacheDirectory, e.toString());
+        }
+    }
+
+    private static Instant lastUsed(Path dir) {
+        Path marker = dir.resolve(COMPLETE_MARKER);
+        try {
+            return Files.getLastModifiedTime(Files.exists(marker) ? marker : dir).toInstant();
+        } catch (IOException e) {
+            return Instant.now();
+        }
+    }
+
+    private void removeQuietly(Path dir) {
+        try {
+            discard(dir);
+            logger.info("Removed unused system ivy repository {}", dir);
+        } catch (IOException e) {
+            logger.warn("Cannot remove unused system ivy repository {}: {}", dir, e.toString());
         }
     }
 
