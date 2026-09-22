@@ -31,10 +31,14 @@ import org.gradle.api.logging.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -62,33 +66,69 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
         if (!Files.isDirectory(pomsRoot)) {
             return List.of();
         }
-        List<XmvnArtifact> artifacts = pomFiles(pomsRoot)
-                .filter(pom -> !skip.contains(pom))
-                .flatMap(pom -> artifacts(pom, javaRoot.resolve(jarPath(pomsRoot.relativize(pom)))))
+        Set<Path> described = skip.stream().map(DefaultPomArtifactReader::realPath).collect(Collectors.toSet());
+        List<XmvnArtifact> artifacts = pomFiles(pomsRoot).entrySet().stream()
+                .filter(pom -> !described.contains(pom.getKey()))
+                .flatMap(pom -> artifacts(pom.getValue(), pomsRoot.relativize(pom.getValue()), javaRoot))
                 .collect(Collectors.toList());
         logger.info("Read {} artifacts from POMs without XMvn metadata in {}", artifacts.size(), pomsRoot);
         return artifacts;
     }
 
-    private static Stream<Path> pomFiles(Path root) {
+    /**
+     * POM files by their real path. A POM reachable under several names, such as a
+     * compatibility symlink, is read once, preferably under its own name.
+     */
+    private static Map<Path, Path> pomFiles(Path root) {
         try (Stream<Path> files = Files.walk(root)) {
             return files
                     .filter(Files::isRegularFile)
                     .filter(file -> file.getFileName().toString().endsWith(".pom"))
-                    .sorted()
-                    .collect(Collectors.toList())
-                    .stream();
+                    .sorted(Comparator.comparing(Files::isSymbolicLink).thenComparing(Comparator.naturalOrder()))
+                    .collect(Collectors.toMap(
+                            DefaultPomArtifactReader::realPath, Function.identity(), (first, second) -> first, TreeMap::new));
         } catch (IOException e) {
             throw new GradleException("Cannot list POM directory " + root, e);
         }
     }
 
-    private static Path jarPath(Path relativePom) {
-        String name = relativePom.getFileName().toString();
-        return relativePom.resolveSibling(name.substring(0, name.length() - ".pom".length()) + ".jar");
+    private static Path realPath(Path path) {
+        try {
+            return path.toRealPath();
+        } catch (IOException e) {
+            return path.toAbsolutePath().normalize();
+        }
     }
 
-    private Stream<XmvnArtifact> artifacts(Path pom, Path jar) {
+    /**
+     * Where the jar of a POM can be installed, relative to the jar root: under the
+     * POM's own path, as xgradle-cli installs it ({@code X/Y.pom} and {@code X/Y.jar}),
+     * under the JPP names of older packages ({@code JPP-Y.pom} for {@code Y.jar},
+     * {@code JPP.X-Y.pom} for {@code X/Y.jar}), or named after the artifactId.
+     */
+    private static Stream<Path> jarCandidates(Path relativePom, String artifactId) {
+        String name = relativePom.getFileName().toString();
+        String base = name.substring(0, name.length() - ".pom".length());
+        return Stream.of(Stream.of(base), jppNames(base), Stream.of(artifactId))
+                .flatMap(Function.identity())
+                .map(jar -> relativePom.resolveSibling(jar + ".jar"));
+    }
+
+    /** The directory of {@code JPP.X-Y} may contain dashes itself, so every split is a candidate. */
+    private static Stream<String> jppNames(String base) {
+        if (base.startsWith("JPP-")) {
+            return Stream.of(base.substring("JPP-".length()));
+        }
+        if (!base.startsWith("JPP.")) {
+            return Stream.empty();
+        }
+        String name = base.substring("JPP.".length());
+        return IntStream.range(1, name.length() - 1)
+                .filter(i -> name.charAt(i) == '-')
+                .mapToObj(i -> name.substring(0, i) + "/" + name.substring(i + 1));
+    }
+
+    private Stream<XmvnArtifact> artifacts(Path pom, Path relativePom, Path javaRoot) {
         MavenCoordinate coordinate = pomParser.parsePom(pom);
         if (coordinate == null || !coordinate.isValid()) {
             logger.warn("Skipping POM without complete coordinates: {}", pom);
@@ -99,11 +139,14 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .map(DefaultPomArtifactReader::toDependency)
                 .collect(Collectors.toList());
 
-        Stream<XmvnArtifact> pomArtifact = Stream.of(artifact(coordinate, "pom", pom, dependencies, pom));
         // The packaging says nothing here: ALT POMs of jar modules often declare <packaging>pom</packaging>.
-        return Files.isRegularFile(jar)
-                ? Stream.concat(Stream.of(artifact(coordinate, ArtifactKey.DEFAULT_EXTENSION, jar, dependencies, pom)), pomArtifact)
-                : pomArtifact;
+        Stream<XmvnArtifact> jarArtifact = jarCandidates(relativePom, coordinate.getArtifactId())
+                .map(javaRoot::resolve)
+                .filter(Files::isRegularFile)
+                .findFirst()
+                .map(jar -> artifact(coordinate, ArtifactKey.DEFAULT_EXTENSION, jar, dependencies, pom))
+                .stream();
+        return Stream.concat(jarArtifact, Stream.of(artifact(coordinate, "pom", pom, dependencies, pom)));
     }
 
     private static XmvnArtifact artifact(

@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -95,6 +96,39 @@ class InstalledArtifactsLoaderTests {
                 resolve(repository, "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin:7.1.0"));
         assertEquals(Set.of("biz.aQute.bnd.gradle.jar"),
                 resolve(repository, "biz.aQute.bnd.workspace:biz.aQute.bnd.workspace.gradle.plugin:7.1.0"));
+    }
+
+    @Test
+    @DisplayName("reads a POM reachable through a symlink once")
+    void readsSymlinkedPomOnce() throws IOException {
+        Path copy = Files.createDirectories(temp.resolve("poms").resolve(PACKAGE));
+        try (Stream<Path> files = Files.list(poms.resolve(PACKAGE))) {
+            for (Path pom : files.collect(Collectors.toList())) {
+                Files.copy(pom, copy.resolve(pom.getFileName()));
+            }
+        }
+        Files.createSymbolicLink(copy.getParent().resolve("JPP-biz.aQute.bnd.gradle.pom"),
+                copy.resolve("biz.aQute.bnd.gradle.pom"));
+
+        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(), true, copy.getParent(), temp.resolve("java"));
+
+        assertTrue(injector.getInstance(MetadataIndex.class)
+                .resolve(new ArtifactKey("biz.aQute.bnd", "biz.aQute.bnd.gradle", "pom", "", "SYSTEM"))
+                .isPresent(), "the POM is not dropped as its own duplicate");
+    }
+
+    @Test
+    @DisplayName("finds the jar of a POM installed under a JPP name")
+    void findsJarOfJppPom() throws IOException {
+        Path jppPoms = Files.createDirectories(temp.resolve("jpp-poms"));
+        Files.copy(poms.resolve(PACKAGE).resolve("biz.aQute.bnd.gradle.pom"),
+                jppPoms.resolve("JPP." + PACKAGE + "-biz.aQute.bnd.gradle.pom"));
+
+        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(), true, jppPoms, temp.resolve("java"));
+
+        assertEquals(java.resolve("biz.aQute.bnd.gradle.jar"), injector.getInstance(MetadataIndex.class)
+                .resolve(ArtifactKey.jar("biz.aQute.bnd", "biz.aQute.bnd.gradle", "SYSTEM"))
+                .orElseThrow().getPath());
     }
 
     @Test
