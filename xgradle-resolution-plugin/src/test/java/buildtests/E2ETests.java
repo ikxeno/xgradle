@@ -110,9 +110,38 @@ public class E2ETests {
                 "buildSrc must resolve its dependencies from installed artifacts");
         assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":lib:compileJava")).getOutcome(),
                 "the included build must resolve its dependencies from installed artifacts");
+        assertFalse(result.getOutput().contains("script applied with 'apply from'"),
+                "the buildscript classpath of a nested build is not an applied script");
+    }
+
+    @Test
+    @DisplayName("Warns that an applied script's buildscript classpath is not supported")
+    public void testAppliedScriptClasspath(@TempDir File tempDir) throws IOException {
+        BuildResult result = runner("../buildExamples/testAppliedScriptClasspath", tempDir).buildAndFail();
+
+        assertTrue(result.getOutput().contains("buildscript classpath of a script applied with 'apply from' is not "
+                        + "resolved from installed artifacts (not supported by the Gradle API): "
+                        + "commons-io:commons-io:2.16.0"),
+                "the unsupported classpath must be explained, not only fail to resolve");
     }
 
     private BuildResult runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
+        File gradleUserHome = new File(tempDir, "gradleUserHome");
+        File testProjectDir = new File(tempDir, "testProject");
+        BuildResult result = runner(projectPath, tempDir).build();
+
+        System.out.println(result.getOutput());
+
+        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":build"))
+                .getOutcome());
+        assertTrue(generatedIvyModule(gradleUserHome, "commons-cli/commons-cli/1.11.0"),
+                "dependencies must be resolved through the ivy repository generated from XMvn metadata");
+        assertTrue(Files.isRegularFile(testProjectDir.toPath().resolve("build/reports/xgradle/sbom-cyclonedx.json")),
+                "the SBOM must be written when the build ends");
+        return result;
+    }
+
+    private GradleRunner runner(String projectPath, File tempDir) throws IOException {
         File gradleUserHome = new File(tempDir, "gradleUserHome");
         File pluginsDir = new File(gradleUserHome, "lib/plugins");
         assertTrue(pluginsDir.mkdirs());
@@ -138,7 +167,7 @@ public class E2ETests {
         Path metadata = testLibPath.resolve("maven-metadata").resolve("testlibs.xml");
         Files.writeString(metadata, Files.readString(metadata).replace("@TESTLIBS@", testLibAbsolutePath));
 
-        BuildResult result = GradleRunner.create()
+        return GradleRunner.create()
                 .withProjectDir(testProjectDir)
                 .withArguments(
                         "--gradle-user-home", gradleUserHome.getAbsolutePath(),
@@ -150,18 +179,7 @@ public class E2ETests {
                         "-Dgenerate.sbom=cyclonedx",
                         "--offline"
                 )
-                .forwardOutput()
-                 .build();
-
-        System.out.println(result.getOutput());
-
-        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":build"))
-                .getOutcome());
-        assertTrue(generatedIvyModule(gradleUserHome, "commons-cli/commons-cli/1.11.0"),
-                "dependencies must be resolved through the ivy repository generated from XMvn metadata");
-        assertTrue(Files.isRegularFile(testProjectDir.toPath().resolve("build/reports/xgradle/sbom-cyclonedx.json")),
-                "the SBOM must be written when the build ends");
-        return result;
+                .forwardOutput();
     }
 
     private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {

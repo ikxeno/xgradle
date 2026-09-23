@@ -26,8 +26,17 @@ import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
+import org.gradle.api.artifacts.DependencyResolutionListener;
+import org.gradle.api.artifacts.ExternalModuleDependency;
+import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.initialization.dsl.ScriptHandler;
+import org.gradle.api.logging.Logger;
+
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Puts the system repository first in the {@code buildscript} repositories of the
@@ -35,6 +44,12 @@ import org.gradle.api.initialization.dsl.ScriptHandler;
  * installed revisions. Gradle calls {@code beforeProject} before it evaluates the
  * project's script, so the repository is in place when the script's
  * {@code buildscript { }} block resolves.
+ *
+ * <p>Scripts applied with {@code apply from:} are not covered: Gradle gives each
+ * of them a detached resolver with its own {@code buildscript} repositories and
+ * offers no public hook to reach it before it resolves, and by the time a
+ * resolution listener sees the classpath its dependencies can no longer be
+ * changed. Their classpath is reported with a warning instead.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -45,18 +60,23 @@ final class DefaultScriptClasspathManager implements ScriptClasspathManager {
     private final IvyRepositoryGenerator repositoryGenerator;
     private final DependencySubstitutor substitutor;
     private final MetadataIndex metadataIndex;
+    private final Logger logger;
+    private final Set<ResolvableDependencies> configuredClasspaths =
+            Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
     @Inject
     DefaultScriptClasspathManager(
             RepositoryManager repositoryManager,
             IvyRepositoryGenerator repositoryGenerator,
             DependencySubstitutor substitutor,
-            MetadataIndex metadataIndex
+            MetadataIndex metadataIndex,
+            Logger logger
     ) {
         this.repositoryManager = repositoryManager;
         this.repositoryGenerator = repositoryGenerator;
         this.substitutor = substitutor;
         this.metadataIndex = metadataIndex;
+        this.logger = logger;
     }
 
     @Override
@@ -67,10 +87,42 @@ final class DefaultScriptClasspathManager implements ScriptClasspathManager {
         IvyRepository repository = repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(settings.getGradle()));
         configure(settings.getBuildscript(), repository);
         settings.getGradle().beforeProject(project -> configure(project.getBuildscript(), repository));
+        settings.getGradle().addListener(new AppliedScriptClasspathWarning());
     }
 
     private void configure(ScriptHandler buildscript, IvyRepository repository) {
         repositoryManager.configureDependenciesRepository(buildscript.getRepositories(), repository);
         substitutor.configure(buildscript.getConfigurations());
+        buildscript.getConfigurations().configureEach(configuration ->
+                configuredClasspaths.add(configuration.getIncoming()));
+    }
+
+    /**
+     * Warns about a script classpath this manager did not configure, which is the
+     * classpath of a script applied with {@code apply from:}.
+     */
+    private final class AppliedScriptClasspathWarning implements DependencyResolutionListener {
+
+        @Override
+        public void beforeResolve(ResolvableDependencies dependencies) {
+            if (!ScriptHandler.CLASSPATH_CONFIGURATION.equals(dependencies.getName())
+                    || configuredClasspaths.contains(dependencies)) {
+                return;
+            }
+            String modules = dependencies.getDependencies().stream()
+                    .filter(ExternalModuleDependency.class::isInstance)
+                    .map(dependency -> dependency.getGroup() + ":" + dependency.getName()
+                            + ":" + dependency.getVersion())
+                    .collect(Collectors.joining(", "));
+            if (!modules.isEmpty()) {
+                logger.warn("xgradle: buildscript classpath of a script applied with 'apply from' is not resolved "
+                        + "from installed artifacts (not supported by the Gradle API): {}. "
+                        + "Move it to the project's buildscript { } block or to plugins { }.", modules);
+            }
+        }
+
+        @Override
+        public void afterResolve(ResolvableDependencies dependencies) {
+        }
     }
 }

@@ -1,0 +1,10 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'commons-io:commons-io:2.16.0'
+    }
+}
+
+println "applied script classpath: " + org.apache.commons.io.FilenameUtils.getExtension('extensions.gradle')

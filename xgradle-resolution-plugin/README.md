@@ -31,7 +31,10 @@ set** (prepared by packaging) rather than downloading from the network.
 ### 3) Build script classpath (`buildscript { }`)
 - Puts the same repository first in the `buildscript` repositories of `settings.gradle` and of
   every project script, before the script runs, and resolves `classpath` requests to installed
-  versions. Scripts applied with `apply from:` keep their own `buildscript` and are not covered.
+  versions.
+- Not supported: the `buildscript { }` of a script applied with `apply from:`. Gradle gives such
+  a script its own detached resolver that no plugin can reach before it resolves, so the plugin
+  only warns about it. Move the classpath to the project's `buildscript { }` or to `plugins { }`.
 
 ### 4) Optional SBOM generation
 - If `generate.sbom` is set to `spdx` or `cyclonedx`, xgradle-resolution-plugin generates an SBOM report
