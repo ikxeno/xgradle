@@ -157,31 +157,17 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
             List<XmvnDependency> dependencies,
             Path pom
     ) {
-        return new XmvnArtifact(
-                coordinate.getGroupId(),
-                coordinate.getArtifactId(),
-                extension,
-                "",
-                coordinate.getVersion(),
-                path,
-                "",
-                Map.of(),
-                List.of(),
-                List.of(),
-                dependencies,
-                pom);
+        return XmvnArtifact.builder(coordinate.getGroupId(), coordinate.getArtifactId(), coordinate.getVersion(), pom)
+                .extension(extension)
+                .path(path)
+                .dependencies(dependencies)
+                .build();
     }
 
     private static XmvnDependency toDependency(MavenCoordinate dependency) {
-        return new XmvnDependency(
-                dependency.getGroupId(),
-                dependency.getArtifactId(),
-                null,
-                "",
-                dependency.getVersion(),
-                null,
-                "",
-                dependency.isOptional(),
-                List.of());
+        return XmvnDependency.builder(dependency.getGroupId(), dependency.getArtifactId())
+                .requestedVersion(dependency.getVersion())
+                .optional(dependency.isOptional())
+                .build();
     }
 }

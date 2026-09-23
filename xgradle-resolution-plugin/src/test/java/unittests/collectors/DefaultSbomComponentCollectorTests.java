@@ -39,7 +39,6 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -142,9 +141,10 @@ class DefaultSbomComponentCollectorTests {
         Path repositoryLink = Files.createSymbolicLink(tempDir.resolve("failureaccess-1.0.3.jar"), installedJar);
         ResolvedArtifactsRegistry.getOrCreate(root).add(repositoryLink.toFile());
 
-        when(index.artifacts()).thenReturn(List.of(new XmvnArtifact(
-                "com.google.guava", "failureaccess", "jar", "", "1.0.3", installedJar,
-                "", Map.of(), List.of(), List.of(), List.of(), tempDir.resolve("guava.xml"))));
+        when(index.artifacts()).thenReturn(List.of(
+                XmvnArtifact.builder("com.google.guava", "failureaccess", "1.0.3", tempDir.resolve("guava.xml"))
+                        .path(installedJar)
+                        .build()));
         when(pomFinder.findPomForArtifact("com.google.guava", "failureaccess"))
                 .thenReturn(coordinate("com.google.guava", "failureaccess", "1.0.3", "jar", pomPath));
         when(pomMetadataReader.read(pomPath)).thenReturn(new PomMetadata(

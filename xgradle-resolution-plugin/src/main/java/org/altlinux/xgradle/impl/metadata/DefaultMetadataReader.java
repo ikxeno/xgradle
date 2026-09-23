@@ -35,9 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
@@ -117,65 +115,43 @@ final class DefaultMetadataReader implements MetadataReader {
     }
 
     private static XmvnArtifact parseArtifact(Element e, Path file) {
-        String groupId = required(e, "groupId", file);
-        String artifactId = required(e, "artifactId", file);
-        String version = required(e, "version", file);
         String path = text(e, "path");
-
-        List<String> compatVersions = children(child(e, "compatVersions"), "version")
-                .map(Xml::text)
-                .collect(Collectors.toList());
-
-        List<ArtifactKey> aliases = children(child(e, "aliases"), "alias")
-                .map(alias -> new ArtifactKey(
-                        required(alias, "groupId", file),
-                        required(alias, "artifactId", file),
-                        text(alias, "extension"),
-                        text(alias, "classifier"),
-                        ArtifactKey.SYSTEM_VERSION))
-                .collect(Collectors.toList());
-
-        List<XmvnDependency> dependencies = children(child(e, "dependencies"), "dependency")
-                .map(dep -> parseDependency(dep, file))
-                .collect(Collectors.toList());
-
-        return new XmvnArtifact(
-                groupId,
-                artifactId,
-                text(e, "extension"),
-                text(e, "classifier"),
-                version,
-                path == null ? null : Path.of(path),
-                text(e, "namespace"),
-                properties(child(e, "properties")),
-                compatVersions,
-                aliases,
-                dependencies,
-                file);
+        return XmvnArtifact.builder(
+                        required(e, "groupId", file),
+                        required(e, "artifactId", file),
+                        required(e, "version", file),
+                        file)
+                .extension(text(e, "extension"))
+                .classifier(text(e, "classifier"))
+                .path(path == null ? null : Path.of(path))
+                .namespace(text(e, "namespace"))
+                .compatVersions(children(child(e, "compatVersions"), "version")
+                        .map(Xml::text)
+                        .collect(Collectors.toList()))
+                .aliases(children(child(e, "aliases"), "alias")
+                        .map(alias -> new ArtifactKey(
+                                required(alias, "groupId", file),
+                                required(alias, "artifactId", file),
+                                text(alias, "extension"),
+                                text(alias, "classifier"),
+                                ArtifactKey.SYSTEM_VERSION))
+                        .collect(Collectors.toList()))
+                .dependencies(children(child(e, "dependencies"), "dependency")
+                        .map(dependency -> parseDependency(dependency, file))
+                        .collect(Collectors.toList()))
+                .build();
     }
 
     private static XmvnDependency parseDependency(Element e, Path file) {
-        List<String> exclusions = children(child(e, "exclusions"), "exclusion")
-                .map(x -> required(x, "groupId", file) + ":" + required(x, "artifactId", file))
-                .collect(Collectors.toList());
-        return new XmvnDependency(
-                required(e, "groupId", file),
-                required(e, "artifactId", file),
-                text(e, "extension"),
-                text(e, "classifier"),
-                text(e, "requestedVersion"),
-                text(e, "resolvedVersion"),
-                text(e, "namespace"),
-                Boolean.parseBoolean(text(e, "optional")),
-                exclusions);
-    }
-
-    private static Map<String, String> properties(Element e) {
-        return children(e, null).collect(Collectors.toMap(
-                Element::getLocalName,
-                Xml::text,
-                (first, second) -> second,
-                LinkedHashMap::new));
+        return XmvnDependency.builder(required(e, "groupId", file), required(e, "artifactId", file))
+                .extension(text(e, "extension"))
+                .classifier(text(e, "classifier"))
+                .requestedVersion(text(e, "requestedVersion"))
+                .optional(Boolean.parseBoolean(text(e, "optional")))
+                .exclusions(children(child(e, "exclusions"), "exclusion")
+                        .map(x -> required(x, "groupId", file) + ":" + required(x, "artifactId", file))
+                        .collect(Collectors.toList()))
+                .build();
     }
 
     private static String required(Element e, String name, Path file) {

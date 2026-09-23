@@ -17,7 +17,6 @@ package org.altlinux.xgradle.impl.model;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,38 +36,32 @@ public final class XmvnArtifact {
     private final String version;
     private final Path path;
     private final String namespace;
-    private final Map<String, String> properties;
     private final List<String> compatVersions;
     private final List<ArtifactKey> aliases;
     private final List<XmvnDependency> dependencies;
     private final Path metadataFile;
 
-    public XmvnArtifact(
-            String groupId,
-            String artifactId,
-            String extension,
-            String classifier,
-            String version,
-            Path path,
-            String namespace,
-            Map<String, String> properties,
-            List<String> compatVersions,
-            List<ArtifactKey> aliases,
-            List<XmvnDependency> dependencies,
-            Path metadataFile
-    ) {
-        this.groupId = Objects.requireNonNull(groupId, "groupId");
-        this.artifactId = Objects.requireNonNull(artifactId, "artifactId");
-        this.extension = extension == null || extension.isEmpty() ? ArtifactKey.DEFAULT_EXTENSION : extension;
-        this.classifier = classifier == null ? "" : classifier;
-        this.version = Objects.requireNonNull(version, "version");
-        this.path = path;
-        this.namespace = namespace == null ? "" : namespace;
-        this.properties = Map.copyOf(properties);
-        this.compatVersions = List.copyOf(compatVersions);
-        this.aliases = List.copyOf(aliases);
-        this.dependencies = List.copyOf(dependencies);
-        this.metadataFile = metadataFile;
+    private XmvnArtifact(Builder builder) {
+        this.groupId = Objects.requireNonNull(builder.groupId, "groupId");
+        this.artifactId = Objects.requireNonNull(builder.artifactId, "artifactId");
+        this.version = Objects.requireNonNull(builder.version, "version");
+        this.extension = builder.extension == null || builder.extension.isEmpty()
+                ? ArtifactKey.DEFAULT_EXTENSION
+                : builder.extension;
+        this.classifier = builder.classifier == null ? "" : builder.classifier;
+        this.path = builder.path;
+        this.namespace = builder.namespace == null ? "" : builder.namespace;
+        this.compatVersions = List.copyOf(builder.compatVersions);
+        this.aliases = List.copyOf(builder.aliases);
+        this.dependencies = List.copyOf(builder.dependencies);
+        this.metadataFile = builder.metadataFile;
+    }
+
+    /**
+     * @param metadataFile the metadata file or POM the artifact was read from
+     */
+    public static Builder builder(String groupId, String artifactId, String version, Path metadataFile) {
+        return new Builder(groupId, artifactId, version, metadataFile);
     }
 
     /**
@@ -125,21 +118,6 @@ public final class XmvnArtifact {
         return namespace;
     }
 
-    public Map<String, String> getProperties() {
-        return properties;
-    }
-
-    public List<String> getCompatVersions() {
-        return compatVersions;
-    }
-
-    /**
-     * Alias coordinates; their version is always {@link ArtifactKey#SYSTEM_VERSION}.
-     */
-    public List<ArtifactKey> getAliases() {
-        return aliases;
-    }
-
     public List<XmvnDependency> getDependencies() {
         return dependencies;
     }
@@ -155,5 +133,72 @@ public final class XmvnArtifact {
             sb.append(':').append(classifier);
         }
         return sb.append(':').append(version).toString();
+    }
+
+    public static final class Builder {
+
+        private final String groupId;
+        private final String artifactId;
+        private final String version;
+        private final Path metadataFile;
+        private String extension;
+        private String classifier;
+        private Path path;
+        private String namespace;
+        private List<String> compatVersions = List.of();
+        private List<ArtifactKey> aliases = List.of();
+        private List<XmvnDependency> dependencies = List.of();
+
+        private Builder(String groupId, String artifactId, String version, Path metadataFile) {
+            this.groupId = groupId;
+            this.artifactId = artifactId;
+            this.version = version;
+            this.metadataFile = metadataFile;
+        }
+
+        /** Default {@code jar}. */
+        public Builder extension(String extension) {
+            this.extension = extension;
+            return this;
+        }
+
+        public Builder classifier(String classifier) {
+            this.classifier = classifier;
+            return this;
+        }
+
+        /** Absolute path of the installed file. */
+        public Builder path(Path path) {
+            this.path = path;
+            return this;
+        }
+
+        public Builder namespace(String namespace) {
+            this.namespace = namespace;
+            return this;
+        }
+
+        public Builder compatVersions(List<String> compatVersions) {
+            this.compatVersions = compatVersions;
+            return this;
+        }
+
+        /**
+         * Other coordinates of the same artifact, such as its groupId before a rename.
+         * Their version is ignored: an alias is reachable under the artifact's versions.
+         */
+        public Builder aliases(List<ArtifactKey> aliases) {
+            this.aliases = aliases;
+            return this;
+        }
+
+        public Builder dependencies(List<XmvnDependency> dependencies) {
+            this.dependencies = dependencies;
+            return this;
+        }
+
+        public XmvnArtifact build() {
+            return new XmvnArtifact(this);
+        }
     }
 }
