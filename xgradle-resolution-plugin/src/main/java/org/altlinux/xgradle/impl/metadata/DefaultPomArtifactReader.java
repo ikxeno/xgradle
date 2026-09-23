@@ -146,7 +146,8 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .findFirst()
                 .map(jar -> artifact(coordinate, ArtifactKey.DEFAULT_EXTENSION, jar, dependencies, pom))
                 .stream();
-        return Stream.concat(jarArtifact, Stream.of(artifact(coordinate, "pom", pom, dependencies, pom)));
+        XmvnArtifact pomArtifact = artifact(coordinate, ArtifactKey.POM_EXTENSION, pom, dependencies, pom);
+        return Stream.concat(jarArtifact, Stream.of(pomArtifact));
     }
 
     private static XmvnArtifact artifact(

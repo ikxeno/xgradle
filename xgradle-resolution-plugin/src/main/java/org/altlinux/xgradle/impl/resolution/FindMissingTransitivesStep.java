@@ -19,7 +19,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.ArtifactKey;
-import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
@@ -31,7 +30,6 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * Finds transitive dependencies of the resolved system artifacts that no
@@ -64,7 +62,8 @@ final class FindMissingTransitivesStep implements ResolutionStep {
         Deque<XmvnArtifact> queue = new ArrayDeque<>();
         Set<XmvnArtifact> visited = new HashSet<>();
         ctx.getSystemArtifacts().values().stream()
-                .map(this::installed)
+                .map(coordinate -> index.resolveModule(
+                        coordinate.getGroupId(), coordinate.getArtifactId(), ArtifactKey.SYSTEM_VERSION))
                 .flatMap(Optional::stream)
                 .forEach(queue::add);
 
@@ -80,15 +79,6 @@ final class FindMissingTransitivesStep implements ResolutionStep {
                             queue::add,
                             () -> ctx.markSkipped(describe(artifact, dependency))));
         }
-    }
-
-    private Optional<XmvnArtifact> installed(MavenCoordinate coordinate) {
-        return Stream.of(ArtifactKey.DEFAULT_EXTENSION, "pom")
-                .map(extension -> new ArtifactKey(
-                        coordinate.getGroupId(), coordinate.getArtifactId(), extension, "", ArtifactKey.SYSTEM_VERSION))
-                .map(index::resolve)
-                .flatMap(Optional::stream)
-                .findFirst();
     }
 
     private static String describe(XmvnArtifact artifact, XmvnDependency dependency) {

@@ -276,7 +276,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 .append("\" conf=\"").append(CONF).append("->").append(CONF).append("\"");
 
         XmvnDependency dep = resolved.dependency;
-        boolean customArtifact = dep != null && !"pom".equals(dep.getExtension())
+        boolean customArtifact = dep != null && !ArtifactKey.POM_EXTENSION.equals(dep.getExtension())
                 && (!ArtifactKey.DEFAULT_EXTENSION.equals(dep.getExtension()) || !dep.getClassifier().isEmpty());
         boolean hasExclusions = dep != null && !dep.getExclusions().isEmpty();
         if (!customArtifact && !hasExclusions) {
@@ -362,7 +362,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 aliasOf = aliasOf == null ? artifact : aliasOf;
                 return;
             }
-            if ("pom".equals(key.getExtension())) {
+            if (ArtifactKey.POM_EXTENSION.equals(key.getExtension())) {
                 pom = pom == null ? artifact : pom;
                 return;
             }

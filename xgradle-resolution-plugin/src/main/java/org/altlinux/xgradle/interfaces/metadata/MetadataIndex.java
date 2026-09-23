@@ -21,6 +21,7 @@ import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Immutable index of installed artifacts, resolving them the same way the
@@ -53,6 +54,33 @@ public interface MetadataIndex {
             return Optional.of(key.getVersion());
         }
         return resolve(key.withVersion(ArtifactKey.SYSTEM_VERSION)).map(XmvnArtifact::getVersion);
+    }
+
+    /**
+     * The artifact that stands for a module: its jar, or its POM for a POM-only
+     * module such as a parent, a BOM or a Gradle plugin marker.
+     */
+    default Optional<XmvnArtifact> resolveModule(String groupId, String artifactId, String version) {
+        return moduleKeys(groupId, artifactId, version)
+                .map(this::resolve)
+                .flatMap(Optional::stream)
+                .findFirst();
+    }
+
+    /**
+     * Revision of the installed module a request resolves to, as {@link #revision}
+     * resolves it for the jar or, for a POM-only module, the POM.
+     */
+    default Optional<String> moduleRevision(String groupId, String artifactId, String version) {
+        return moduleKeys(groupId, artifactId, version)
+                .map(this::revision)
+                .flatMap(Optional::stream)
+                .findFirst();
+    }
+
+    private static Stream<ArtifactKey> moduleKeys(String groupId, String artifactId, String version) {
+        return Stream.of(ArtifactKey.DEFAULT_EXTENSION, ArtifactKey.POM_EXTENSION)
+                .map(extension -> new ArtifactKey(groupId, artifactId, extension, "", version));
     }
 
     /**

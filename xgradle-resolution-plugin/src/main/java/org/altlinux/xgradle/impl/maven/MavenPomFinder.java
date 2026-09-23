@@ -39,8 +39,6 @@ import java.util.stream.Collectors;
 @Singleton
 final class MavenPomFinder implements PomFinder {
 
-    private static final String POM = "pom";
-
     private final MetadataIndex index;
 
     @Inject
@@ -50,19 +48,16 @@ final class MavenPomFinder implements PomFinder {
 
     @Override
     public MavenCoordinate findPomForArtifact(String groupId, String artifactId) {
-        ArtifactKey jar = ArtifactKey.jar(groupId, artifactId, ArtifactKey.SYSTEM_VERSION);
-        ArtifactKey pom = new ArtifactKey(groupId, artifactId, POM, "", ArtifactKey.SYSTEM_VERSION);
+        Optional<XmvnArtifact> pom = index.resolve(
+                new ArtifactKey(groupId, artifactId, ArtifactKey.POM_EXTENSION, "", ArtifactKey.SYSTEM_VERSION));
 
-        Optional<XmvnArtifact> jarArtifact = index.resolve(jar).filter(artifact -> artifact.getPath() != null);
-        Optional<XmvnArtifact> pomArtifact = index.resolve(pom);
-
-        return jarArtifact.or(() -> pomArtifact)
+        return index.resolveModule(groupId, artifactId, ArtifactKey.SYSTEM_VERSION)
                 .map(artifact -> MavenCoordinate.builder()
                         .groupId(groupId)
                         .artifactId(artifactId)
                         .version(artifact.getVersion())
-                        .packaging(jarArtifact.isPresent() ? ArtifactKey.DEFAULT_EXTENSION : POM)
-                        .pomPath(pomArtifact.map(XmvnArtifact::getPath).orElse(null))
+                        .packaging(artifact.getExtension())
+                        .pomPath(pom.map(XmvnArtifact::getPath).orElse(null))
                         .build())
                 .orElse(null);
     }

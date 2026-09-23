@@ -105,7 +105,7 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
      */
     private Optional<Path> resolveParentPath(Path childPath, Parent parent) {
         ArtifactKey key = new ArtifactKey(
-                parent.getGroupId(), parent.getArtifactId(), "pom", "", parent.getVersion());
+                parent.getGroupId(), parent.getArtifactId(), ArtifactKey.POM_EXTENSION, "", parent.getVersion());
         return index.resolve(key)
                 .map(XmvnArtifact::getPath)
                 .or(() -> Optional.of(childPath.resolveSibling(parent.getArtifactId() + ".pom"))

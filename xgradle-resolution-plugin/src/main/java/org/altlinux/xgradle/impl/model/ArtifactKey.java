@@ -27,6 +27,7 @@ public final class ArtifactKey {
 
     public static final String SYSTEM_VERSION = "SYSTEM";
     public static final String DEFAULT_EXTENSION = "jar";
+    public static final String POM_EXTENSION = "pom";
 
     private final String groupId;
     private final String artifactId;
