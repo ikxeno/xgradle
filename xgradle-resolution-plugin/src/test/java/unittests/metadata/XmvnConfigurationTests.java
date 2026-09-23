@@ -102,6 +102,20 @@ class XmvnConfigurationTests {
         assertEquals(List.of(), xmvn.getMetadataRepositories());
     }
 
+    @Test
+    @DisplayName("resolves a relative metadata repository against the build directory")
+    void relativeRepositoryIsFromBuildDirectory() throws IOException {
+        Path project = temp.resolve("project");
+        Path configD = Files.createDirectories(project.resolve(".xmvn/config.d"));
+        Files.writeString(configD.resolve("10-local.xml"), "<configuration><resolverSettings>"
+                + "<metadataRepositories><repository>local-metadata</repository></metadataRepositories>"
+                + "</resolverSettings></configuration>");
+
+        XmvnConfiguration xmvn = XmvnConfiguration.load(project, altEnvironment(), temp.resolve("home"), false);
+
+        assertEquals(project.resolve("local-metadata"), xmvn.getMetadataRepositories().get(0));
+    }
+
     private Map<String, String> altEnvironment() throws IOException {
         Path share = Files.createDirectories(temp.resolve("share/xmvn"));
         try (InputStream in = Objects.requireNonNull(

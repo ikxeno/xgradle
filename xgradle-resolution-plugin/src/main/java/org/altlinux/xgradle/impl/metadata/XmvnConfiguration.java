@@ -81,7 +81,7 @@ public final class XmvnConfiguration {
 
         List<Path> repositories = settings.stream()
                 .flatMap(resolver -> children(child(resolver, "metadataRepositories"), "repository"))
-                .map(repository -> Path.of(text(repository)))
+                .map(repository -> currentDir.resolve(text(repository)))
                 .distinct()
                 .collect(Collectors.toList());
         boolean ignoreDuplicates = settings.stream()
@@ -96,6 +96,8 @@ public final class XmvnConfiguration {
 
     /**
      * Metadata repositories in XMvn order: settings from more specific files first.
+     * A relative path is taken from the build directory, as XMvn takes it from the
+     * directory Maven runs in.
      */
     public List<Path> getMetadataRepositories() {
         return metadataRepositories;
