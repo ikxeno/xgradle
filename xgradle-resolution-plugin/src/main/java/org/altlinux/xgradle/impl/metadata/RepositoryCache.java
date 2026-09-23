@@ -55,17 +55,29 @@ final class RepositoryCache {
     }
 
     /**
-     * The repository with the given fingerprint, written first if no build has written it yet.
+     * The repository with the given fingerprint, written first if no build has written it
+     * yet or another build has just removed it as unused.
      */
     Path obtain(String fingerprint, ContentWriter writer) throws IOException {
         Path root = directory.resolve(fingerprint);
-        if (isComplete(root)) {
-            Files.setLastModifiedTime(root.resolve(COMPLETE_MARKER), FileTime.from(Instant.now()));
-        } else {
+        if (!markUsed(root)) {
             write(root, writer);
         }
         removeUnused(root);
         return root;
+    }
+
+    /**
+     * Touches the complete marker. Touching instead of checking first leaves no gap in
+     * which a cleanup could remove the repository after it was found.
+     */
+    private static boolean markUsed(Path root) throws IOException {
+        try {
+            Files.setLastModifiedTime(root.resolve(COMPLETE_MARKER), FileTime.from(Instant.now()));
+            return true;
+        } catch (NoSuchFileException e) {
+            return false;
+        }
     }
 
     private void write(Path root, ContentWriter writer) throws IOException {
@@ -93,7 +105,7 @@ final class RepositoryCache {
             dirs.filter(dir -> !dir.equals(current))
                     .filter(dir -> lastUsed(dir).isBefore(cutoff))
                     .collect(Collectors.toList())
-                    .forEach(this::removeQuietly);
+                    .forEach(dir -> removeQuietly(dir, cutoff));
         } catch (IOException e) {
             logger.warn("Cannot clean up old system ivy repositories in {}: {}", directory, e.toString());
         }
@@ -108,7 +120,14 @@ final class RepositoryCache {
         }
     }
 
-    private void removeQuietly(Path dir) {
+    /**
+     * Checks the last use again right before removing, since another build may have
+     * started using the repository after the directory was listed.
+     */
+    private void removeQuietly(Path dir, Instant cutoff) {
+        if (!lastUsed(dir).isBefore(cutoff)) {
+            return;
+        }
         try {
             discard(dir);
             logger.info("Removed unused system ivy repository {}", dir);
