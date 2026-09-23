@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>app</artifactId>
+      <version>1</version>
+      <path>/usr/share/java/app.jar</path>
+      <dependencies>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>lib</artifactId>
+          <requestedVersion>1</requestedVersion>
+        </dependency>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>absent</artifactId>
+          <requestedVersion>1</requestedVersion>
+        </dependency>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>extra</artifactId>
+          <requestedVersion>1</requestedVersion>
+          <optional>true</optional>
+        </dependency>
+      </dependencies>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>lib</artifactId>
+      <version>1</version>
+      <path>/usr/share/java/lib.jar</path>
+      <dependencies>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>gone</artifactId>
+          <requestedVersion>1</requestedVersion>
+        </dependency>
+      </dependencies>
+    </artifact>
+  </artifacts>
+</metadata>

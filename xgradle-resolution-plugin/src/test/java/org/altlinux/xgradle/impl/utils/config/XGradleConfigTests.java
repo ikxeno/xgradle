@@ -39,7 +39,6 @@ class XGradleConfigTests {
     private String prevJavaLib;
     private String prevMavenPoms;
     private String prevDisableXGradle;
-    private String prevScanDepth;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -47,7 +46,6 @@ class XGradleConfigTests {
         prevJavaLib = System.getProperty("java.library.dir");
         prevMavenPoms = System.getProperty("maven.poms.dir");
         prevDisableXGradle = System.getProperty("disable.xgradle");
-        prevScanDepth = System.getProperty("xgradle.scan.depth");
 
         XGradleConfig.resetForTests();
         System.setProperty("user.home", tempDir.toString());
@@ -60,7 +58,6 @@ class XGradleConfigTests {
         restoreProperty("java.library.dir", prevJavaLib);
         restoreProperty("maven.poms.dir", prevMavenPoms);
         restoreProperty("disable.xgradle", prevDisableXGradle);
-        restoreProperty("xgradle.scan.depth", prevScanDepth);
         XGradleConfig.resetForTests();
     }
 
@@ -96,19 +93,6 @@ class XGradleConfigTests {
         assertEquals("true", System.getProperty("disable.xgradle"));
     }
 
-    @Test
-    @DisplayName("getIntProperty parses integer and falls back to default")
-    void getIntPropertyParsesAndDefaults() throws Exception {
-        writeConfig("xgradle.scan.depth=5");
-        System.clearProperty("xgradle.scan.depth");
-
-        int value = XGradleConfig.getIntProperty("xgradle.scan.depth", 3);
-        assertEquals(5, value);
-
-        writeConfig("xgradle.scan.depth=bad");
-        int fallback = XGradleConfig.getIntProperty("xgradle.scan.depth", 3);
-        assertEquals(3, fallback);
-    }
 
     private void writeConfig(String content) throws Exception {
         Path config = tempDir.resolve(".xgradle").resolve("xgradle.config");

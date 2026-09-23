@@ -23,11 +23,16 @@ plugins {
 
 val initScriptName = "${project.name}.gradle"
 
+configurations.shadow {
+    exclude(group = "org.slf4j")
+}
+
 dependencies {
     compileOnly(gradleApi())
     implementation(project(":xgradle-sbom-generator"))
     implementation(libs.bundles.maven.tooling)
     implementation(libs.guice)
+    implementation(libs.guava)
     runtimeOnly(libs.plexus.utils)
     runtimeOnly(libs.bundles.guice.deps)
     testImplementation(gradleTestKit())
@@ -50,14 +55,6 @@ gradlePlugin{
             id = project.group as String
             implementationClass = "${project.group}.impl.plugin.XGradlePlugin"
         }
-    }
-}
-
-tasks.named<Copy>("processResources") {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    from("main/resources/META-INF/gradle-plugins") {
-        include("${project.group}.properties")
     }
 }
 
@@ -143,6 +140,7 @@ tasks.test {
 
     systemProperty("java.library.dir", System.getProperty("java.library.dir"))
     systemProperty("maven.poms.dir", System.getProperty("maven.poms.dir"))
+    gradle.gradleHomeDir?.let { systemProperty("xgradle.test.gradleHome", it.absolutePath) }
 }
 
 tasks.named("clean") {

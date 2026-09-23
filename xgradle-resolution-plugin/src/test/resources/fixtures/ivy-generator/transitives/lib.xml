@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
+  <artifacts>
+    <artifact>
+      <groupId>org.example</groupId>
+      <artifactId>lib</artifactId>
+      <version>1.5</version>
+      <path>@DIR@/lib.jar</path>
+      <aliases>
+        <alias>
+          <groupId>org.example</groupId>
+          <artifactId>lib-legacy</artifactId>
+        </alias>
+        <alias>
+          <groupId>org.renamed</groupId>
+          <artifactId>lib</artifactId>
+        </alias>
+      </aliases>
+    </artifact>
+  </artifacts>
+</metadata>

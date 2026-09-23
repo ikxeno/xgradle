@@ -15,19 +15,21 @@
  */
 package org.altlinux.xgradle.impl.extensions;
 
+import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
-import java.util.StringTokenizer;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+
 /**
  * Provides access to system-level dependency paths for the plugin.
  *
@@ -35,70 +37,78 @@ import java.util.stream.Collectors;
  */
 public class SystemDepsExtension {
 
-    private static final String JAVA_LIBRARY_DIR_KEY = "java.library.dir";
+    private static final String MAVEN_METADATA_DIR_KEY = "maven.metadata.dir";
+    private static final Path DEFAULT_METADATA_DIR = Path.of("/usr/share/maven-metadata");
     private static final String MAVEN_POMS_DIR_KEY = "maven.poms.dir";
+    private static final Path DEFAULT_POMS_DIR = Path.of("/usr/share/maven-poms");
+    private static final String JAVA_LIBRARY_DIR_KEY = "java.library.dir";
+    private static final Path DEFAULT_JAVA_DIR = Path.of("/usr/share/java");
     private static final String PATH_SEPARATOR = ",";
-    private static final String CONFIG_FILE_HINT = "~/.xgradle/xgradle.config";
     private static final Logger LOGGER = Logging.getLogger(SystemDepsExtension.class);
-    private static final AtomicBoolean MISSING_JARS_PATH_LOGGED = new AtomicBoolean(false);
-    private static final AtomicBoolean MISSING_POMS_PATH_LOGGED = new AtomicBoolean(false);
+    private static final AtomicBoolean MISSING_METADATA_PATH_LOGGED = new AtomicBoolean(false);
 
-    public static String getJarsPath() {
-        return getProperty(JAVA_LIBRARY_DIR_KEY, MISSING_JARS_PATH_LOGGED);
+    /**
+     * Root of POMs installed without XMvn metadata: {@code maven.poms.dir}, default
+     * {@code /usr/share/maven-poms}.
+     */
+    public static Path getPomsDir() {
+        return property(MAVEN_POMS_DIR_KEY).map(Path::of).orElse(DEFAULT_POMS_DIR);
     }
 
-    public static List<File> getJarsPaths() {
-        return splitPathProperty(getJarsPath());
+    /**
+     * Root of the jars matching those POMs: {@code java.library.dir}, default
+     * {@code /usr/share/java}.
+     */
+    public static Path getJavaDir() {
+        return property(JAVA_LIBRARY_DIR_KEY).map(Path::of).orElse(DEFAULT_JAVA_DIR);
     }
 
-    public static String getPomsPath() {
-        return getProperty(MAVEN_POMS_DIR_KEY, MISSING_POMS_PATH_LOGGED);
+    /**
+     * Cache directory of the generated ivy repositories, {@code caches/xgradle/ivy} in
+     * the Gradle user home. All builds of the user share it.
+     */
+    public static Path getIvyCacheDir(Gradle gradle) {
+        return gradle.getGradleUserHomeDir().toPath().resolve("caches").resolve("xgradle").resolve("ivy");
     }
 
-    private static List<File> splitPathProperty(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        StringTokenizer tokenizer = new StringTokenizer(value, PATH_SEPARATOR);
-        return Collections.list(tokenizer).stream()
-                .map(Object::toString)
+    private static Optional<String> property(String key) {
+        return Optional.ofNullable(System.getProperty(key))
+                .or(() -> Optional.ofNullable(XGradleConfig.getConfigProperty(key)))
                 .map(String::trim)
-                .filter(part -> !part.isEmpty())
-                .map(File::new)
-                .collect(Collectors.collectingAndThen(
-                        Collectors.toCollection(LinkedHashSet::new),
-                        ArrayList::new
-                ));
+                .filter(value -> !value.isEmpty());
     }
 
-    private static String getProperty(String key, AtomicBoolean missingLogged) {
-        String systemValue = System.getProperty(key);
-        if (systemValue != null && !systemValue.isBlank()) {
-            return systemValue;
+    /**
+     * XMvn metadata locations. The first source that gives any wins:
+     * {@code maven.metadata.dir} (comma-separated) from a system property or
+     * {@code ~/.xgradle/xgradle.config}; the existing metadata repositories of the
+     * XMvn configuration (XMvn skips missing ones too); {@code /usr/share/maven-metadata}.
+     * An explicitly set location is returned even when it is missing, so reading it
+     * fails with an error.
+     */
+    public static List<Path> getMetadataPaths(XmvnConfiguration xmvn) {
+        Optional<String> configured = property(MAVEN_METADATA_DIR_KEY);
+        if (configured.isPresent()) {
+            return Arrays.stream(configured.get().split(PATH_SEPARATOR))
+                    .map(String::trim)
+                    .filter(part -> !part.isEmpty())
+                    .distinct()
+                    .map(Path::of)
+                    .collect(Collectors.toList());
         }
-        String configValue = XGradleConfig.getConfigProperty(key);
-        if (configValue != null && !configValue.isBlank()) {
-            return configValue;
+        List<Path> fromXmvn = xmvn.getMetadataRepositories().stream()
+                .filter(Files::exists)
+                .collect(Collectors.toList());
+        if (!fromXmvn.isEmpty()) {
+            return fromXmvn;
         }
-        if (missingLogged.compareAndSet(false, true)) {
-            LOGGER.warn(
-                    "Missing required property: {}\n" +
-                            "  Provide via JVM arg: -D{}=...\n" +
-                            "  Or add to config: {}\n" +
-                            "  Example: -D{}={}\n",
-                    key, key, CONFIG_FILE_HINT, key, exampleValue(key)
-            );
+        if (Files.isDirectory(DEFAULT_METADATA_DIR)) {
+            return List.of(DEFAULT_METADATA_DIR);
         }
-        return null;
-    }
-
-    private static String exampleValue(String key) {
-        if (JAVA_LIBRARY_DIR_KEY.equals(key)) {
-            return "/usr/share/java,/usr/local/share/java";
+        if (MISSING_METADATA_PATH_LOGGED.compareAndSet(false, true)) {
+            LOGGER.warn("No XMvn metadata found: {} does not exist and -D{} is not set",
+                    DEFAULT_METADATA_DIR, MAVEN_METADATA_DIR_KEY);
         }
-        if (MAVEN_POMS_DIR_KEY.equals(key)) {
-            return "/usr/share/maven-poms";
-        }
-        return "/path/to/value";
+        return List.of();
     }
 }

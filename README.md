@@ -17,8 +17,9 @@ The project is split into standalone components that work together:
 XMvn: https://fedora-java.github.io/xmvn
 
 - **[xgradle-resolution-plugin](xgradle-resolution-plugin/README.md) (Gradle plugin / init script)** — configures Gradle to resolve:
-    - Project dependencies from local system artifact directories
-    - Gradle plugins from local directories via pluginManagement repositories
+    - Project dependencies from the installed artifacts described by XMvn metadata
+    - Gradle plugins via pluginManagement repositories
+    - Build script classpath declared in `buildscript { }` blocks
 
 - **[xgradle-cli](xgradle-cli/README.md) (standalone CLI)** — prepares and maintains the local artifact set used by Gradle:
     - Registers local artifacts / BOMs for consistent versioning

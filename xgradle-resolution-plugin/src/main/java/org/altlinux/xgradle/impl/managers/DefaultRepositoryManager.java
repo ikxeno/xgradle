@@ -16,35 +16,26 @@
 package org.altlinux.xgradle.impl.managers;
 
 import com.google.inject.Inject;
-import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
-import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 
-import org.gradle.api.GradleException;
+import org.altlinux.xgradle.impl.model.IvyRepository;
+import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
+import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
+
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
-import org.gradle.api.artifacts.repositories.FlatDirectoryArtifactRepository;
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 /**
- * Manages the addition of system-level dependency repositories to a Gradle build.
+ * Adds the ivy repository generated from XMvn metadata to a Gradle build.
  * Implements {@link RepositoryManager}.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 final class DefaultRepositoryManager implements RepositoryManager {
 
-    private static final String SCAN_DEPTH_KEY = "xgradle.scan.depth";
-    private static final int DEFAULT_SCAN_DEPTH = 3;
+    private static final String PLUGINS_REPO_NAME = "SystemPluginsRepo";
+    private static final String DEPENDENCIES_REPO_NAME = "SystemDepsRepo";
 
     private final Logger logger;
 
@@ -53,85 +44,44 @@ final class DefaultRepositoryManager implements RepositoryManager {
         this.logger = logger;
     }
 
-    public void configurePluginsRepository(Settings settings, List<File> baseDirs) {
-        List<File> validDirs = getValidDirectories(baseDirs);
-        if (validDirs.isEmpty()) {
-            logger.warn("No valid system jars directories for plugin repositories");
-            return;
+    @Override
+    public void configurePluginsRepository(Settings settings, IvyRepository repository) {
+        addFirst(settings.getPluginManagement().getRepositories(), PLUGINS_REPO_NAME, repository);
+    }
+
+    @Override
+    public void configureDependenciesRepository(RepositoryHandler repositories, IvyRepository repository) {
+        addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
+    }
+
+    @Override
+    public void configureProjectRepository(RepositoryHandler repositories, IvyRepository repository) {
+        if (!repositories.isEmpty()) {
+            addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
         }
-        List<File> dirs = scanDirectories(validDirs);
-        settings.getPluginManagement().getRepositories().flatDir(repo -> {
-            repo.setName("SystemPluginsRepo");
-            dirs.forEach(repo::dir);
-            logger.info("Configured PluginManagement repository with {} directories", dirs.size());
-        });
-    }
-
-    public void configureDependenciesRepository(RepositoryHandler repos, List<File> baseDirs) {
-        List<File> validDirs = requireValidDirectories(baseDirs);
-
-        String repoName = "SystemDepsRepo" + UUID.randomUUID();
-        FlatDirectoryArtifactRepository flatRepo = createFlatRepository(repos, repoName, validDirs);
-
-        repos.remove(flatRepo);
-        repos.addFirst(flatRepo);
-    }
-
-    private List<File> scanDirectories(List<File> baseDirs) {
-        LinkedHashSet<File> allDirs = new LinkedHashSet<>();
-        int scanDepth = XGradleConfig.getIntProperty(SCAN_DEPTH_KEY, DEFAULT_SCAN_DEPTH);
-        baseDirs.forEach(baseDir -> {
-            File root = baseDir.getAbsoluteFile();
-            Path basePath = root.toPath();
-            allDirs.add(root);
-            try (Stream<Path> pathStream = Files.walk(basePath, scanDepth)) {
-                pathStream.filter(Files::isDirectory)
-                        .filter(path -> !path.equals(basePath))
-                        .forEach(path -> allDirs.add(path.toFile()));
-            } catch (Exception e) {
-                logger.error("Directory scan error: {}", e.getMessage());
+        repositories.whenObjectAdded(added -> {
+            if (repositories.findByName(DEPENDENCIES_REPO_NAME) == null) {
+                addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
             }
         });
-        return new ArrayList<>(allDirs);
     }
 
-    private List<File> getValidDirectories(List<File> baseDirs) {
-        if (baseDirs == null || baseDirs.isEmpty()) {
-            return List.of();
-        }
-        List<File> validDirs = baseDirs.stream()
-                .filter(dir -> dir != null && dir.isDirectory() && dir.canRead())
-                .collect(Collectors.toList());
-        List<File> invalidDirs = baseDirs.stream()
-                .filter(dir -> dir == null || !dir.isDirectory() || !dir.canRead())
-                .collect(Collectors.toList());
-        if (!invalidDirs.isEmpty()) {
-            logger.warn("Skipping invalid lib directories: {}", invalidDirs);
-        }
-        return validDirs;
-    }
-
-    private List<File> requireValidDirectories(List<File> baseDirs) {
-        List<File> validDirs = getValidDirectories(baseDirs);
-        if (!validDirs.isEmpty()) {
-            return validDirs;
-        }
-        if (baseDirs == null || baseDirs.isEmpty()) {
-            throw new GradleException("java.library.dir is not set or empty");
-        }
-        throw new GradleException("No valid lib directories found in java.library.dir: " + baseDirs);
-    }
-
-    private FlatDirectoryArtifactRepository createFlatRepository(
-            RepositoryHandler repos,
-            String repoName,
-            List<File> baseDirs
-    ) {
-        return repos.flatDir(repo -> {
-            repo.setName(repoName);
-            List<File> allDirs = scanDirectories(baseDirs);
-            allDirs.forEach(repo::dir);
-            logger.info("Configured DependencyManagement repository with {} directories", allDirs.size());
+    /**
+     * Adds the repository and moves it to the front, because the repository DSL can
+     * only append. System artifacts must win over every other repository.
+     */
+    private void addFirst(RepositoryHandler repositories, String name, IvyRepository repository) {
+        IvyArtifactRepository ivy = repositories.ivy(repo -> {
+            repo.setName(name);
+            repo.setUrl(repository.getRoot().toUri());
+            repo.patternLayout(layout -> {
+                layout.ivy(IvyRepositoryGenerator.IVY_PATTERN);
+                layout.artifact(IvyRepositoryGenerator.ARTIFACT_PATTERN);
+            });
+            repo.metadataSources(IvyArtifactRepository.MetadataSources::ivyDescriptor);
         });
+        repositories.remove(ivy);
+        repositories.addFirst(ivy);
+        logger.info("Configured {} at {}", name, repository.getRoot());
     }
 }

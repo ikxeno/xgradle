@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
+  <artifacts>
+    <artifact>
+      <groupId>org.example</groupId>
+      <artifactId>extra</artifactId>
+      <version>1.0</version>
+      <path>@DIR@/extra.jar</path>
+    </artifact>
+  </artifacts>
+</metadata>

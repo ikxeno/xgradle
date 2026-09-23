@@ -15,11 +15,9 @@
  */
 package org.altlinux.xgradle.interfaces.resolvers;
 
-import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.artifacts.ConfigurationContainer;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 /**
   * Substitutes dependency versions during resolution.
 
@@ -28,17 +26,16 @@ import java.util.Set;
  */
 
 public interface DependencySubstitutor {
-/**
-  * Method the operation.
 
- */
+    /**
+     * Makes every module request of the given configurations, including ones
+     * created later, resolve to the installed revision.
+     */
+    void configure(ConfigurationContainer configurations);
 
-    void configure(
-            Gradle gradle,
-            Map<String, Set<String>> requestedVersions,
-            Map<String, MavenCoordinate> systemArtifacts,
-            Map<String, String> managedVersions,
-            Map<String, String> overrideLogs,
-            Map<String, String> applyLogs
-    );
+    /**
+     * The installed revision {@link #configure} resolves a request to, if it differs
+     * from the requested version.
+     */
+    Optional<String> replacement(String group, String name, String requestedVersion);
 }

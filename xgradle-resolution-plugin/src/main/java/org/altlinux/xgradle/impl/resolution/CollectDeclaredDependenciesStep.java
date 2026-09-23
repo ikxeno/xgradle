@@ -55,10 +55,5 @@ final class CollectDeclaredDependenciesStep implements ResolutionStep {
         resolutionContext.getRequestedVersions().putAll(
                 dependencyCollector.getRequestedVersions()
         );
-
-        resolutionContext.getAllDependencies().clear();
-        resolutionContext.getAllDependencies().addAll(
-                resolutionContext.getProjectDependencies()
-        );
     }
 }

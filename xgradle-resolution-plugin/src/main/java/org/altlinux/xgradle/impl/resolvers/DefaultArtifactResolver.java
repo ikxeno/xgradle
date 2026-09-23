@@ -17,14 +17,16 @@ package org.altlinux.xgradle.impl.resolvers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.resolvers.ArtifactResolver;
-import org.altlinux.xgradle.interfaces.services.VersionScanner;
-import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.logging.Logger;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 /**
  * Resolver for Artifact.
@@ -36,27 +38,40 @@ import java.util.Set;
 @Singleton
 public final class DefaultArtifactResolver implements ArtifactResolver {
 
-    private final VersionScanner versionScanner;
+    private final ModuleFinder moduleFinder;
 
     private Map<String, MavenCoordinate> systemArtifacts = Collections.emptyMap();
     private Set<String> notFound = Collections.emptySet();
 
     @Inject
-    public DefaultArtifactResolver(VersionScanner versionScanner) {
-        this.versionScanner = versionScanner;
+    public DefaultArtifactResolver(ModuleFinder moduleFinder) {
+        this.moduleFinder = moduleFinder;
     }
 
+    /**
+     * Looks the declared {@code groupId:artifactId} keys up among the installed
+     * artifacts, preferring a compat version that matches a declared version.
+     * Transitive dependencies are left to Gradle, which reads them from the ivy
+     * descriptors generated from the same metadata.
+     */
     @Override
-    public void resolve(Set<String> dependencies, Logger logger) {
-        systemArtifacts = versionScanner.scanSystemArtifacts(dependencies);
-        notFound = versionScanner.getNotFoundDependencies();
+    public void resolve(Set<String> dependencies, Map<String, Set<String>> requestedVersions, Logger logger) {
+        Map<String, MavenCoordinate> found = new LinkedHashMap<>();
+        Set<String> missing = new LinkedHashSet<>();
+        dependencies.stream().sorted().forEach(key -> {
+            String[] ga = key.split(":", 3);
+            Optional<MavenCoordinate> coordinate = ga.length < 2
+                    ? Optional.empty()
+                    : moduleFinder.findModule(ga[0], ga[1], requestedVersions.getOrDefault(key, Set.of()));
+            coordinate.ifPresentOrElse(module -> found.put(key, module), () -> missing.add(key));
+        });
+        systemArtifacts = found;
+        notFound = missing;
     }
 
     @Override
     public void filter() {
-        systemArtifacts.entrySet().removeIf(e ->
-                MavenScope.TEST.equals(e.getValue().getScope()) || e.getValue().isBom()
-        );
+        systemArtifacts.entrySet().removeIf(e -> e.getValue().isPomOnly());
     }
 
     @Override

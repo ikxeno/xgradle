@@ -15,123 +15,112 @@
  */
 package unittests.resolvers;
 
-import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import com.google.inject.Injector;
+
+import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.impl.resolvers.DefaultDependencySubstitutor;
-import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
-import org.gradle.api.Action;
+import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+
+import unittests.Fixtures;
+import unittests.metadata.Installations;
+
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.DependencySubstitution;
-import org.gradle.api.artifacts.DependencySubstitutions;
-import org.gradle.api.artifacts.ResolutionStrategy;
-import org.gradle.api.artifacts.component.ModuleComponentSelector;
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.testfixtures.ProjectBuilder;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.util.Map;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
+ * Resolves real requests through the generated repository with the substitutor applied.
+ *
  * @author Ivan Khanas xeno@altlinux.org
  */
-@ExtendWith(MockitoExtension.class)
 @DisplayName("DependencySubstitutor contract")
 class DependencySubstitutorTests {
 
-    @Mock
-    private Gradle gradle;
-
-    @Mock
-    private Project project;
-
-    @Mock
-    private ConfigurationContainer configs;
-
-    @Mock
-    private Configuration configuration;
-
-    @Mock
-    private ResolutionStrategy strategy;
-
-    @Mock
-    private DependencySubstitutions subs;
-
-    @Mock
-    private DependencySubstitution details;
-
-    @Mock
-    private ModuleComponentSelector selector;
-
-    @Mock
-    private ModuleComponentSelector targetSelector;
+    @TempDir
+    Path temp;
 
     @Test
-    @DisplayName("Applies override substitution for system artifact version")
-    void appliesOverrideSubstitution() {
-        DependencySubstitutor substitutor = new DefaultDependencySubstitutor();
+    @DisplayName("resolves declared, versionless, alias and compat requests to installed revisions")
+    void resolvesToInstalledRevisions() throws IOException {
+        Path jars = Files.createDirectories(temp.resolve("java"));
+        Path metadata = Fixtures.copy("substitutor/installed-revisions", temp.resolve("metadata"), jars);
+        Files.writeString(jars.resolve("lib.jar"), "lib");
+        Files.writeString(jars.resolve("old.jar"), "old");
 
-        when(project.getConfigurations()).thenReturn(configs);
-        when(configuration.getResolutionStrategy()).thenReturn(strategy);
+        Injector injector = Installations.injector(List.of(metadata));
+        MetadataIndex index = injector.getInstance(MetadataIndex.class);
+        IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
 
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<Project> action = invocation.getArgument(0);
-            action.execute(project);
-            return null;
-        }).when(gradle).allprojects(any(Action.class));
+        Project project = project(repository);
+        project.getConfigurations().create("deps");
+        List.of("g:lib:1.0", "g:lib", "g:lib-legacy:0.9", "g:old:1.0")
+                .forEach(notation -> project.getDependencies().add("deps", notation));
 
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<Configuration> action = invocation.getArgument(0);
-            action.execute(configuration);
-            return null;
-        }).when(configs).all(any(Action.class));
+        DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
+        substitutor.configure(project.getConfigurations());
 
-        when(subs.module(any(String.class))).thenReturn(targetSelector);
+        Set<String> resolved = resolved(project, "deps");
 
-        when(selector.getGroup()).thenReturn("g");
-        when(selector.getModule()).thenReturn("a");
-        when(selector.getVersion()).thenReturn("1.0");
-        when(details.getRequested()).thenReturn(selector);
+        assertEquals(Set.of("lib:1.5", "lib-legacy:1.5", "old:1.0"), resolved);
+        assertEquals(Optional.of("1.5"), substitutor.replacement("g", "lib", "1.0"));
+        assertEquals(Optional.empty(), substitutor.replacement("g", "lib", "1.5"), "the installed version is kept");
+    }
 
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<DependencySubstitutions> action = invocation.getArgument(0);
-            action.execute(subs);
-            return null;
-        }).when(strategy).dependencySubstitution(any(Action.class));
+    @Test
+    @DisplayName("a version the build forces is still replaced by the installed one, as XMvn ignores it")
+    void overridesForcedVersion() throws IOException {
+        Path jars = Files.createDirectories(temp.resolve("java"));
+        Path metadata = Fixtures.copy("substitutor/forced-version", temp.resolve("metadata"), jars);
+        Files.writeString(jars.resolve("lib.jar"), "lib");
+        Files.writeString(jars.resolve("rules.jar"), "rules");
 
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<DependencySubstitution> action = invocation.getArgument(0);
-            action.execute(details);
-            return null;
-        }).when(subs).all(any(Action.class));
+        Injector injector = Installations.injector(List.of(metadata));
+        IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
 
-        Map<String, Set<String>> requested = Map.of("g:a", Set.of("1.0"));
-        Map<String, MavenCoordinate> systemArtifacts = Map.of(
-                "g:a",
-                MavenCoordinate.builder().groupId("g").artifactId("a").version("2.0").build()
-        );
+        Project project = project(repository);
+        project.getConfigurations().create("deps", configuration ->
+                configuration.getResolutionStrategy().force("g:lib-dep:4.11"));
+        project.getDependencies().add("deps", "g:rules:1.19.0");
+        new DefaultDependencySubstitutor(injector.getInstance(MetadataIndex.class))
+                .configure(project.getConfigurations());
 
-        substitutor.configure(
-                gradle,
-                requested,
-                systemArtifacts,
-                Map.of(),
-                new java.util.HashMap<>(),
-                new java.util.HashMap<>()
-        );
+        assertEquals(Set.of("rules:1.19.0", "lib-dep:4.13.1", "lib:4.13.1"), resolved(project, "deps"));
+    }
 
-        verify(subs).module("g:a:2.0");
-        verify(details).useTarget(eq(targetSelector), anyString());
+    private Project project(IvyRepository repository) {
+        Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
+        project.getRepositories().ivy(repo -> {
+            repo.setUrl(repository.getRoot().toUri());
+            repo.patternLayout(layout -> {
+                layout.ivy(IvyRepositoryGenerator.IVY_PATTERN);
+                layout.artifact(IvyRepositoryGenerator.ARTIFACT_PATTERN);
+            });
+            repo.metadataSources(sources -> sources.ivyDescriptor());
+        });
+        return project;
+    }
+
+    private static Set<String> resolved(Project project, String configuration) {
+        return project.getConfigurations().getByName(configuration).getIncoming()
+                .getResolutionResult().getAllComponents().stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .filter(module -> module != null && module.getGroup().equals("g"))
+                .map(module -> module.getName() + ":" + module.getVersion())
+                .collect(Collectors.toSet());
     }
 }

@@ -19,12 +19,18 @@ import org.altlinux.xgradle.impl.plugin.XGradlePlugin;
 import org.gradle.StartParameter;
 import org.gradle.api.Action;
 import org.gradle.api.invocation.Gradle;
+import org.gradle.api.GradleException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -40,6 +46,7 @@ class XGradlePluginTests {
     @AfterEach
     void tearDown() {
         System.clearProperty("disable.xgradle");
+        System.clearProperty("maven.metadata.dir");
     }
 
     @Test
@@ -59,6 +66,7 @@ class XGradlePluginTests {
         StartParameter startParameter = mock(StartParameter.class);
         Gradle gradle = mock(Gradle.class);
         when(gradle.getStartParameter()).thenReturn(startParameter);
+        when(startParameter.getCurrentDir()).thenReturn(new File(System.getProperty("java.io.tmpdir")));
 
         plugin.apply(gradle);
 
@@ -73,10 +81,25 @@ class XGradlePluginTests {
         StartParameter startParameter = mock(StartParameter.class);
         Gradle gradle = mock(Gradle.class);
         when(gradle.getStartParameter()).thenReturn(startParameter);
+        when(startParameter.getCurrentDir()).thenReturn(new File(System.getProperty("java.io.tmpdir")));
 
         plugin.apply(gradle);
 
         verify(gradle).beforeSettings(any(Action.class));
         verify(gradle).projectsEvaluated(any(Action.class));
+    }
+
+    @Test
+    @DisplayName("apply fails with the GradleException itself, not wrapped by Guice")
+    void applyReportsMissingMetadataLocationDirectly(@TempDir File tempDir) {
+        System.setProperty("maven.metadata.dir", new File(tempDir, "missing").getPath());
+        StartParameter startParameter = mock(StartParameter.class);
+        Gradle gradle = mock(Gradle.class);
+        when(gradle.getStartParameter()).thenReturn(startParameter);
+        when(startParameter.getCurrentDir()).thenReturn(tempDir);
+
+        GradleException e = assertThrows(GradleException.class, () -> plugin.apply(gradle));
+
+        assertTrue(e.getMessage().contains("missing"), e.getMessage());
     }
 }

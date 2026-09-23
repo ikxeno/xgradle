@@ -22,6 +22,7 @@ import org.altlinux.xgradle.impl.services.DefaultSbomGenerationService;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
 import org.altlinux.xgradle.interfaces.generators.SbomGenerator;
 import org.gradle.api.Project;
+import org.gradle.api.GradleException;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
@@ -34,9 +35,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -75,17 +76,17 @@ class DefaultSbomGenerationServiceTests {
         Collection<SbomComponent> components = List.of(
                 SbomComponent.maven("org.example", "core", "1.0.0")
         );
-        when(sbomComponentCollector.collect(eq(root), anyCollection(), anyCollection()))
+        when(sbomComponentCollector.collect(anyCollection(), anyCollection(), anyCollection()))
                 .thenReturn((List<SbomComponent>) components);
 
         DefaultSbomGenerationService service =
-                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector);
+                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector, logger);
         service.generate(
                 gradle,
                 SbomFormat.CYCLONEDX,
-                Map.of("org.example:core", coordinate),
+                List.of(coordinate),
                 List.of(),
-                logger
+                List.of()
         );
 
         verify(sbomGenerator).generate(
@@ -101,11 +102,11 @@ class DefaultSbomGenerationServiceTests {
     }
 
     @Test
-    @DisplayName("Catches runtime exception and logs warning")
-    void catchesRuntimeExceptionAndLogsWarning() {
+    @DisplayName("Fails the build when the requested SBOM cannot be generated")
+    void failsWhenSbomGenerationFails() {
         Project root = ProjectBuilder.builder().withName("demo-root").build();
         when(gradle.getRootProject()).thenReturn(root);
-        when(sbomComponentCollector.collect(eq(root), anyCollection(), anyCollection()))
+        when(sbomComponentCollector.collect(anyCollection(), anyCollection(), anyCollection()))
                 .thenReturn(List.of());
         doThrow(new RuntimeException("boom")).when(sbomGenerator).generate(
                 any(),
@@ -116,16 +117,16 @@ class DefaultSbomGenerationServiceTests {
         );
 
         DefaultSbomGenerationService service =
-                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector);
+                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector, logger);
 
-        assertDoesNotThrow(() -> service.generate(
+        GradleException e = assertThrows(GradleException.class, () -> service.generate(
                 gradle,
                 SbomFormat.SPDX,
-                Map.of(),
                 List.of(),
-                logger
+                List.of(),
+                List.of()
         ));
 
-        verify(logger).warn(eq("Failed to generate SBOM"), any(RuntimeException.class));
+        assertEquals("boom", e.getCause().getMessage());
     }
 }

@@ -17,13 +17,18 @@ package org.altlinux.xgradle.impl.plugin;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
+import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
+import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.di.XGradlePluginModule;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
 import org.altlinux.xgradle.impl.utils.ui.LogoPrinter;
 
+import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.invocation.Gradle;
 
@@ -49,15 +54,34 @@ public final class XGradlePlugin implements Plugin<Gradle> {
             LogoPrinter.printCenteredBanner();
         }
 
-        Injector injector = Guice.createInjector(
-                new XGradlePluginModule()
-        );
+        XmvnConfiguration xmvn = XmvnConfiguration.load(gradle.getStartParameter().getCurrentDir().toPath());
+        InstalledLayout layout = new InstalledLayout(
+                SystemDepsExtension.getMetadataPaths(xmvn),
+                xmvn.isIgnoreDuplicateMetadata(),
+                SystemDepsExtension.getPomsDir(),
+                SystemDepsExtension.getJavaDir());
+        Injector injector = Guice.createInjector(new XGradlePluginModule(layout));
 
-        PluginsDependenciesHandler plugins = injector.getInstance(PluginsDependenciesHandler.class);
-        ProjectDependenciesHandler dependencies = injector.getInstance(ProjectDependenciesHandler.class);
+        PluginsDependenciesHandler plugins = instance(injector, PluginsDependenciesHandler.class);
+        ProjectDependenciesHandler dependencies = instance(injector, ProjectDependenciesHandler.class);
 
         gradle.beforeSettings(plugins::handle);
         gradle.projectsEvaluated(dependencies::handle);
+    }
+
+    /**
+     * Creating a handler builds the metadata index. A GradleException from that, such
+     * as a missing metadata location, is rethrown as is instead of wrapped by Guice.
+     */
+    private static <T> T instance(Injector injector, Class<T> type) {
+        try {
+            return injector.getInstance(type);
+        } catch (ProvisionException e) {
+            if (e.getCause() instanceof GradleException) {
+                throw (GradleException) e.getCause();
+            }
+            throw e;
+        }
     }
 
     private boolean isDisabled() {

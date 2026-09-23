@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>lib</artifactId>
+      <version>1.5</version>
+      <path>@DIR@/lib.jar</path>
+      <aliases>
+        <alias>
+          <groupId>g</groupId>
+          <artifactId>lib-legacy</artifactId>
+        </alias>
+      </aliases>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>old</artifactId>
+      <version>2.0</version>
+      <path>@DIR@/old.jar</path>
+      <compatVersions>
+        <version>1.0</version>
+      </compatVersions>
+    </artifact>
+  </artifacts>
+</metadata>

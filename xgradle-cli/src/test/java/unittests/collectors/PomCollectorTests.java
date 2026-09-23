@@ -20,6 +20,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import com.google.inject.util.Modules;
+import org.altlinux.xgradle.impl.enums.ProcessingType;
 import org.altlinux.xgradle.interfaces.collectors.ArtifactCollector;
 import org.altlinux.xgradle.interfaces.collectors.PomCollector;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
@@ -57,7 +58,7 @@ class PomCollectorTests {
                                         (
                                                 String searchingDir,
                                                 List<String> artifactNames,
-                                                org.altlinux.xgradle.impl.enums.ProcessingType processingType
+                                                ProcessingType processingType
                                         ) -> new HashMap<String, Path>()
                                 );
                             }

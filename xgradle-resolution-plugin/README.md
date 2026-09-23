@@ -20,17 +20,26 @@ set** (prepared by packaging) rather than downloading from the network.
 ## What it does
 
 ### 1) System dependency resolution (projects)
-- Adds a **flatDir** repository for system JAR directories (scanned recursively).
-- Uses Maven **POM metadata** from a system directory to drive resolution:
-    - versions / BOM-managed versions
-    - controlled transitive dependencies
-    - substitutions / mapping to system artifacts
+- Puts an ivy repository generated from XMvn metadata (see *How it works*) first in the settings
+  `dependencyResolutionManagement` repositories and in the repositories of every project that
+  declares its own; Gradle resolves transitive dependencies from its descriptors.
+- Resolves every requested version to the installed one, honouring aliases and compat versions.
+- Both are set up before any script runs, so configurations resolved while a script is evaluated
+  and builds with `repositoriesMode = FAIL_ON_PROJECT_REPOS` work too.
 
 ### 2) Local Gradle plugin resolution (Settings `pluginManagement`)
-- Configures `pluginManagement.repositories` to include the same system JAR directories,
-  allowing Gradle plugins to be resolved from local/system artifacts.
+- Puts the same repository first in `pluginManagement.repositories`, so `plugins { }` requests
+  resolve through the installed plugin markers.
 
-### 3) Optional SBOM generation
+### 3) Build script classpath (`buildscript { }`)
+- Puts the same repository first in the `buildscript` repositories of `settings.gradle` and of
+  every project script, before the script runs, and resolves `classpath` requests to installed
+  versions.
+- Not supported: the `buildscript { }` of a script applied with `apply from:`. Gradle gives such
+  a script its own detached resolver that no plugin can reach before it resolves, so the plugin
+  only warns about it. Move the classpath to the project's `buildscript { }` or to `plugins { }`.
+
+### 4) Optional SBOM generation
 - If `generate.sbom` is set to `spdx` or `cyclonedx`, xgradle-resolution-plugin generates an SBOM report
   from resolved build artifacts.
 - Report path:
@@ -38,6 +47,21 @@ set** (prepared by packaging) rather than downloading from the network.
   - `build/reports/xgradle/sbom-cyclonedx.json`
 
 ---
+
+## How it works
+
+Every ALT Java package installs XMvn metadata (`/usr/share/maven-metadata/*.xml`): the exact
+coordinates of each installed jar and POM, its path, aliases (`%mvn_alias`), compat versions
+(`%mvn_compat_version`) and its runtime dependencies. The plugin reads the metadata repositories
+and `ignoreDuplicateMetadata` from the XMvn configuration (the project's `.xmvn/`, then the XDG
+user and system directories), resolves artifacts with the same rules as XMvn and generates an ivy repository
+from it in the Gradle user home (`caches/xgradle/ivy`): one `ivy.xml` per installed module,
+built from the metadata dependency list, plus symlinks to the installed files. Packages installed
+without XMvn metadata, as xgradle-cli installs Gradle-built packages, are read from their POMs
+(`/usr/share/maven-poms/X/Y.pom` with the jar `/usr/share/java/X/Y.jar`); XMvn metadata wins
+whenever both describe a module. The repository
+is added first to every project and to plugin management, so Gradle resolves system artifacts
+and their transitive dependencies itself, exactly as Maven does under XMvn.
 
 ## Configuration
 
@@ -47,23 +71,21 @@ xgradle-resolution-plugin is configured via **system properties** or the user co
 
 | Property | Meaning |
 |---|---|
-| `java.library.dir` | One or more directories containing **system JARs** (comma-separated). |
-| `maven.poms.dir` | Directory containing **system Maven POM metadata**. |
+| `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Overrides the metadata repositories of the XMvn configuration (on ALT `/usr/share/maven-metadata` and `/usr/share/javapackages-bootstrap/maven-metadata`). |
+| `maven.poms.dir` | Root of POMs installed **without** XMvn metadata, such as packages installed by xgradle-cli (default `/usr/share/maven-poms`). |
+| `java.library.dir` | Root of the jars matching those POMs: `maven.poms.dir/X/Y.pom` pairs with `java.library.dir/X/Y.jar` (default `/usr/share/java`). |
 | `disable.xgradle=true` | Completely disables xgradle plugin logic for the current build. |
 | `disable.logo=true` | Disable ASCII banner printing. |
 | `enable.ansi.color=true` | Enable ANSI colors in xgradle logs. |
-| `xgradle.scan.depth` | Max directory scan depth for system artifacts (default `3`). |
 | `generate.sbom` | SBOM format: `spdx` or `cyclonedx`. |
 
 Example config file (`~/.xgradle/xgradle.config`):
 
 ```
-java.library.dir=/usr/share/java,/usr/local/share/java
-maven.poms.dir=/usr/share/maven-poms
+maven.metadata.dir=/usr/share/maven-metadata
 disable.xgradle=false
 disable.logo=true
 enable.ansi.color=true
-xgradle.scan.depth=3
 generate.sbom=spdx
 ```
 
@@ -71,8 +93,7 @@ generate.sbom=spdx
 
 ```bash
 gradle build \
-  -Djava.library.dir=/usr/share/java \
-  -Dmaven.poms.dir=/usr/share/maven-poms \
+  -Dmaven.metadata.dir=/usr/share/maven-metadata \
   -Dgenerate.sbom=cyclonedx \
   --offline
 ```

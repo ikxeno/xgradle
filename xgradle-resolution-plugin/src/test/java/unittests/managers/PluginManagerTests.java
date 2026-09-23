@@ -17,16 +17,19 @@ package unittests.managers;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
-import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
-import org.altlinux.xgradle.interfaces.managers.ScopeManager;
-import org.altlinux.xgradle.interfaces.managers.TransitiveDependencyManager;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
+import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
+import org.altlinux.xgradle.impl.model.IvyRepository;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
+import org.gradle.api.invocation.Gradle;
+import org.junit.jupiter.api.BeforeEach;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -49,84 +52,56 @@ class PluginManagerTests {
     private RepositoryManager repoManager;
 
     @Mock
-    private ScopeManager scopeManager;
-
-    @Mock
-    private TransitiveDependencyManager transitiveDependencyManager;
+    private SystemRepository systemRepository;
 
     @Mock
     private PluginProcessor pluginProcessor;
 
     @Mock
-    private Logger logger;
-
-    @Mock
     private Settings settings;
 
-    @Test
-    @DisplayName("Configures repositories and processes plugins when jars directory exists")
-    void configuresWhenDirExists(@TempDir Path tempDir) {
-        String prev = System.getProperty("java.library.dir");
-        System.setProperty("java.library.dir", tempDir.toString());
-        try {
-            Injector injector = Guice.createInjector(
-                    Modules.override(new ManagersModule()).with(new AbstractModule() {
-                        @Override
-                        protected void configure() {
-                            bind(RepositoryManager.class).toInstance(repoManager);
-                            bind(ScopeManager.class).toInstance(scopeManager);
-                            bind(TransitiveDependencyManager.class).toInstance(transitiveDependencyManager);
-                            bind(PluginProcessor.class).toInstance(pluginProcessor);
-                            bind(Logger.class).toInstance(logger);
-                        }
-                    })
-            );
+    @Mock
+    private Gradle gradle;
 
-            PluginManager manager = injector.getInstance(PluginManager.class);
-            manager.configure(settings);
+    private PluginManager manager;
 
-            verify(repoManager).configurePluginsRepository(eq(settings), any());
-            verify(pluginProcessor).process(settings);
-            verify(logger, never()).warn(anyString(), (Object) any());
-        } finally {
-            if (prev != null) {
-                System.setProperty("java.library.dir", prev);
-            } else {
-                System.clearProperty("java.library.dir");
-            }
-        }
+    @BeforeEach
+    void setUp() {
+        manager = Guice.createInjector(
+                Modules.override(new ManagersModule()).with(new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(RepositoryManager.class).toInstance(repoManager);
+                        bind(SystemRepository.class).toInstance(systemRepository);
+                        bind(PluginProcessor.class).toInstance(pluginProcessor);
+                        bind(DependencySubstitutor.class).toInstance(mock(DependencySubstitutor.class));
+                        bind(Logger.class).toInstance(mock(Logger.class));
+                    }
+                })
+        ).getInstance(PluginManager.class);
     }
 
     @Test
-    @DisplayName("Warns and skips when jars directory missing")
-    void warnsWhenMissingDir(@TempDir Path tempDir) {
-        String prev = System.getProperty("java.library.dir");
-        System.setProperty("java.library.dir", tempDir.resolve("missing").toString());
-        try {
-            Injector injector = Guice.createInjector(
-                    Modules.override(new ManagersModule()).with(new AbstractModule() {
-                        @Override
-                        protected void configure() {
-                            bind(RepositoryManager.class).toInstance(repoManager);
-                            bind(ScopeManager.class).toInstance(scopeManager);
-                            bind(TransitiveDependencyManager.class).toInstance(transitiveDependencyManager);
-                            bind(PluginProcessor.class).toInstance(pluginProcessor);
-                            bind(Logger.class).toInstance(logger);
-                        }
-                    })
-            );
+    @DisplayName("Configures the system repository and processes plugins when artifacts are installed")
+    void configuresWhenArtifactsInstalled(@TempDir Path tempDir) {
+        IvyRepository repository = new IvyRepository(tempDir);
+        when(settings.getGradle()).thenReturn(gradle);
+        when(systemRepository.forBuild(gradle)).thenReturn(Optional.of(repository));
 
-            PluginManager manager = injector.getInstance(PluginManager.class);
-            manager.configure(settings);
+        manager.configure(settings);
 
-            verify(logger).warn(startsWith("System jars directories do not exist"), (Object) any());
-            verifyNoInteractions(repoManager, pluginProcessor);
-        } finally {
-            if (prev != null) {
-                System.setProperty("java.library.dir", prev);
-            } else {
-                System.clearProperty("java.library.dir");
-            }
-        }
+        verify(repoManager).configurePluginsRepository(settings, repository);
+        verify(pluginProcessor).process(settings);
+    }
+
+    @Test
+    @DisplayName("Skips when no artifacts are installed")
+    void skipsWithoutArtifacts() {
+        when(settings.getGradle()).thenReturn(gradle);
+        when(systemRepository.forBuild(gradle)).thenReturn(Optional.empty());
+
+        manager.configure(settings);
+
+        verifyNoInteractions(repoManager, pluginProcessor);
     }
 }

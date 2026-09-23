@@ -20,10 +20,16 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
+import org.altlinux.xgradle.interfaces.parsers.PomParser;
+import unittests.Fixtures;
+import unittests.metadata.Installations;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
 import org.gradle.api.logging.Logger;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,8 +40,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 /**
  * @author Ivan Khanas xeno@altlinux.org
  */
@@ -47,7 +55,7 @@ class PomHierarchyLoaderTests {
     private Logger logger;
 
     @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Test
     @DisplayName("Loads parent-child hierarchy by artifactId.pom")
@@ -79,7 +87,9 @@ class PomHierarchyLoaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
+                                .toInstance(mock(MetadataIndex.class));
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
                 })
         );
@@ -90,5 +100,54 @@ class PomHierarchyLoaderTests {
         assertEquals(2, hierarchy.size());
         assertEquals("parent", hierarchy.get(0).getArtifactId());
         assertEquals("child", hierarchy.get(1).getArtifactId());
+    }
+
+    @Test
+    @DisplayName("Loads the installed compat version of the parent a POM names")
+    void loadsCompatParent(@TempDir Path tempDir) throws Exception {
+        Fixtures.copy("pom-hierarchy/compat-parent", tempDir);
+        Path child = tempDir.resolve("child.pom");
+        Path metadata = Fixtures.copy("pom-hierarchy/compat-parent-metadata", tempDir.resolve("metadata"), tempDir);
+
+        Injector injector = Guice.createInjector(
+                new MavenModule(),
+                new MetadataModule(Installations.metadataOnly(List.of(metadata), true)),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(logger);
+                        bind(PomParser.class).toInstance(mock(PomParser.class));
+                    }
+                });
+
+        List<Model> hierarchy = injector.getInstance(PomHierarchyLoader.class).loadHierarchy(child);
+
+        assertEquals("1", hierarchy.get(0).getVersion());
+    }
+
+    @Test
+    @DisplayName("Finds a parent installed under a JPP name next to the child")
+    void findsJppNamedParent(@TempDir Path tempDir) throws Exception {
+        Fixtures.copy("pom-hierarchy/jpp-parent", tempDir);
+        Path child = tempDir.resolve("JPP.my-pkg-child.pom");
+
+        Injector injector = Guice.createInjector(
+                Modules.override(new MavenModule()).with(new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(logger);
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
+                                .toInstance(mock(MetadataIndex.class));
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
+                    }
+                })
+        );
+
+        List<Model> hierarchy = injector.getInstance(PomHierarchyLoader.class).loadHierarchy(child);
+
+        assertEquals(List.of("g:parent", "g:child"), hierarchy.stream()
+                .map(model -> (model.getGroupId() != null ? model.getGroupId() : model.getParent().getGroupId())
+                        + ":" + model.getArtifactId())
+                .collect(Collectors.toList()));
     }
 }

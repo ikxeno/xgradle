@@ -17,8 +17,8 @@ package org.altlinux.xgradle.interfaces.collectors;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.models.SbomComponent;
-import org.gradle.api.Project;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.List;
 
@@ -29,9 +29,14 @@ import java.util.List;
  */
 public interface SbomComponentCollector {
 
+    /**
+     * @param artifacts       declared system dependencies
+     * @param pluginArtifacts resolved Gradle plugins
+     * @param resolvedJars    every jar the build resolved, transitive ones included
+     */
     List<SbomComponent> collect(
-            Project rootProject,
             Collection<MavenCoordinate> artifacts,
-            Collection<MavenCoordinate> pluginArtifacts
+            Collection<MavenCoordinate> pluginArtifacts,
+            Collection<File> resolvedJars
     );
 }

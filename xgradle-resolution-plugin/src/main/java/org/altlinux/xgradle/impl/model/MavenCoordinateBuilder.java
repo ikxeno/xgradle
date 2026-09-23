@@ -19,6 +19,7 @@ import org.altlinux.xgradle.impl.enums.MavenPackaging;
 import org.altlinux.xgradle.impl.enums.MavenScope;
 
 import java.nio.file.Path;
+import java.util.List;
 /**
  * Builder for Maven Coordinate.
  *
@@ -33,7 +34,9 @@ public final class MavenCoordinateBuilder {
     String packaging = MavenPackaging.JAR.getPackaging();
     MavenScope scope = MavenScope.COMPILE;
     Path pomPath;
-    boolean testContext;
+    boolean optional;
+    String classifier = "";
+    List<String> exclusions = List.of();
 
     public MavenCoordinateBuilder() {
     }
@@ -45,7 +48,9 @@ public final class MavenCoordinateBuilder {
         this.packaging = src.getPackaging();
         this.scope = src.getScope();
         this.pomPath = src.getPomPath();
-        this.testContext = src.isTestContext();
+        this.optional = src.isOptional();
+        this.classifier = src.getClassifier();
+        this.exclusions = src.getExclusions();
     }
 
     public MavenCoordinateBuilder groupId(String groupId) {
@@ -83,8 +88,19 @@ public final class MavenCoordinateBuilder {
         return this;
     }
 
-    public MavenCoordinateBuilder testContext(boolean testContext) {
-        this.testContext = testContext;
+
+    public MavenCoordinateBuilder optional(boolean optional) {
+        this.optional = optional;
+        return this;
+    }
+
+    public MavenCoordinateBuilder classifier(String classifier) {
+        this.classifier = classifier;
+        return this;
+    }
+
+    public MavenCoordinateBuilder exclusions(List<String> exclusions) {
+        this.exclusions = exclusions;
         return this;
     }
 

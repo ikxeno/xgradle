@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>app</artifactId>
+      <version>1</version>
+      <path>@DIR@/app.jar</path>
+      <dependencies>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>lib</artifactId>
+          <requestedVersion>1.0</requestedVersion>
+        </dependency>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>other-lib</artifactId>
+          <requestedVersion>9</requestedVersion>
+        </dependency>
+      </dependencies>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>other-lib</artifactId>
+      <version>3</version>
+      <path>@DIR@/other.jar</path>
+    </artifact>
+  </artifacts>
+</metadata>

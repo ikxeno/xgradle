@@ -18,15 +18,15 @@ package integrationtests.parsertests;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
 import org.altlinux.xgradle.impl.enums.MavenScope;
-import org.altlinux.xgradle.impl.indexing.IndexingModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
+import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.utils.logging.LoggingModule;
 
+import unittests.metadata.Installations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,10 +54,9 @@ public class TestDependenciesBlockParser {
     public void prepareParser() {
         Injector injector = Guice.createInjector(
                 new LoggingModule(),
-                new CachesModule(),
                 new CollectorsModule(),
-                new IndexingModule(),
                 new MavenModule(),
+                new MetadataModule(Installations.metadataOnly(List.of(), true)),
                 new ParsersModule()
         );
         pomParser = injector.getInstance(PomParser.class);
@@ -89,7 +88,7 @@ public class TestDependenciesBlockParser {
         assertTrue(checkDependencyVersion(parsedDeps, "maven-common-artifact-filters", "3.1.1"));
         assertTrue(checkDependencyVersion(parsedDeps, "jansi", "2.4.0"));
 
-        assertEquals(20, parsedDeps.size());
+        assertEquals(21, parsedDeps.size(), "a dependency without a resolvable version is kept");
     }
 
     @Test

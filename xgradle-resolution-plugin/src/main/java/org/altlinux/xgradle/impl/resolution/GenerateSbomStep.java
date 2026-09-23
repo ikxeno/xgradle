@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.resolution.Order;
@@ -29,12 +30,12 @@ import org.altlinux.xgradle.impl.enums.SbomFormat;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Generates an SBOM report after dependency resolution when enabled by configuration.
@@ -46,18 +47,30 @@ import java.util.Optional;
 @Order(1200)
 final class GenerateSbomStep implements ResolutionStep {
 
+    private static final String BUILD_END_SERVICE = "xgradleSbomAtBuildEnd";
     private static final String GENERATE_SBOM_KEY = "generate.sbom";
 
     private final SbomGenerationService sbomGenerationService;
     private final PluginProcessor pluginProcessor;
+    private final ResolvedJarsCollector resolvedJars;
 
     @Inject
     GenerateSbomStep(
             SbomGenerationService sbomGenerationService,
-            PluginProcessor pluginProcessor
+            PluginProcessor pluginProcessor,
+            ResolvedJarsCollector resolvedJars
     ) {
         this.sbomGenerationService = sbomGenerationService;
         this.pluginProcessor = pluginProcessor;
+        this.resolvedJars = resolvedJars;
+    }
+
+    /**
+     * Whether an SBOM is requested with {@code generate.sbom}.
+     */
+    static boolean isRequested() {
+        String format = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
+        return format != null && !format.isBlank();
     }
 
     @Override
@@ -67,10 +80,10 @@ final class GenerateSbomStep implements ResolutionStep {
 
     @Override
     public void execute(ResolutionContext resolutionContext) {
-        String configuredFormat = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
-        if (configuredFormat == null || configuredFormat.isBlank()) {
+        if (!isRequested()) {
             return;
         }
+        String configuredFormat = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
 
         Optional<SbomFormat> parsedFormat = SbomFormat.fromProperty(configuredFormat);
         Logger logger = resolutionContext.getGradle().getRootProject().getLogger();
@@ -83,19 +96,22 @@ final class GenerateSbomStep implements ResolutionStep {
         }
 
         Gradle gradle = resolutionContext.getGradle();
-        Map<String, MavenCoordinate> artifactsSnapshot =
-                new LinkedHashMap<>(resolutionContext.getSystemArtifacts());
+        List<MavenCoordinate> artifactsSnapshot = List.copyOf(resolutionContext.getSystemArtifacts().values());
         SbomFormat sbomFormat = parsedFormat.get();
         Collection<MavenCoordinate> pluginArtifactsSnapshot =
                 snapshotPluginArtifacts();
+        Set<File> jars = resolvedJars.jars();
 
-        gradle.buildFinished(result -> sbomGenerationService.generate(
-                gradle,
-                sbomFormat,
-                artifactsSnapshot,
-                pluginArtifactsSnapshot,
-                logger
-        ));
+        gradle.getSharedServices()
+                .registerIfAbsent(BUILD_END_SERVICE, BuildEndAction.class, spec -> { })
+                .get()
+                .setAction(() -> sbomGenerationService.generate(
+                        gradle,
+                        sbomFormat,
+                        artifactsSnapshot,
+                        pluginArtifactsSnapshot,
+                        jars
+                ));
     }
 
     private Collection<MavenCoordinate> snapshotPluginArtifacts() {

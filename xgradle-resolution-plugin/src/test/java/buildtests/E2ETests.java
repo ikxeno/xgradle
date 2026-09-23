@@ -27,11 +27,13 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -89,7 +91,76 @@ public class E2ETests {
         runAndVerifyBuild("../buildExamples/multiModularTest", tempDir);
     }
 
-    private void runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
+    @Test
+    @DisplayName("Build with a buildscript classpath in settings and project scripts")
+    public void testBuildscriptClasspath(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testBuildscriptClasspath", tempDir);
+
+        assertTrue(result.getOutput().contains("settings classpath: gradle"),
+                "the settings buildscript classpath must resolve from installed artifacts");
+        assertTrue(result.getOutput().contains("project classpath: [1,2]"),
+                "the project buildscript classpath must resolve from installed artifacts");
+        assertTrue(Files.readString(new File(tempDir, "testProject/build/reports/xgradle/sbom-cyclonedx.json").toPath())
+                        .contains("gson"),
+                "the SBOM must list the buildscript classpath");
+    }
+
+    @Test
+    @DisplayName("Build with buildSrc and an included build")
+    public void testNestedBuilds(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testNestedBuilds", tempDir);
+
+        assertTrue(result.getOutput().contains("buildSrc classpath: [1,2]"),
+                "buildSrc must resolve its dependencies from installed artifacts");
+        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":lib:compileJava")).getOutcome(),
+                "the included build must resolve its dependencies from installed artifacts");
+        assertFalse(result.getOutput().contains("script applied with 'apply from'"),
+                "the buildscript classpath of a nested build is not an applied script");
+    }
+
+    @Test
+    @DisplayName("Resolves a configuration while the build script runs")
+    public void testEarlyResolution(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testEarlyResolution", tempDir);
+
+        assertTrue(result.getOutput().contains("configuration-time classpath: [commons-io-2.21.0.jar]"),
+                "a configuration resolved during configuration must use the installed version");
+    }
+
+    @Test
+    @DisplayName("Build whose settings forbid project repositories")
+    public void testSettingsRepositories(@TempDir File tempDir) throws IOException {
+        runAndVerifyBuild("../buildExamples/testSettingsRepositories", tempDir);
+    }
+
+    @Test
+    @DisplayName("Warns that an applied script's buildscript classpath is not supported")
+    public void testAppliedScriptClasspath(@TempDir File tempDir) throws IOException {
+        BuildResult result = runner("../buildExamples/testAppliedScriptClasspath", tempDir).buildAndFail();
+
+        assertTrue(result.getOutput().contains("buildscript classpath of a script applied with 'apply from' is not "
+                        + "resolved from installed artifacts (not supported by the Gradle API): "
+                        + "commons-io:commons-io:2.16.0"),
+                "the unsupported classpath must be explained, not only fail to resolve");
+    }
+
+    private BuildResult runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
+        File gradleUserHome = new File(tempDir, "gradleUserHome");
+        File testProjectDir = new File(tempDir, "testProject");
+        BuildResult result = runner(projectPath, tempDir).build();
+
+        System.out.println(result.getOutput());
+
+        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":build"))
+                .getOutcome());
+        assertTrue(generatedIvyModule(gradleUserHome, "commons-cli/commons-cli/1.11.0"),
+                "dependencies must be resolved through the ivy repository generated from XMvn metadata");
+        assertTrue(Files.isRegularFile(testProjectDir.toPath().resolve("build/reports/xgradle/sbom-cyclonedx.json")),
+                "the SBOM must be written when the build ends");
+        return result;
+    }
+
+    private GradleRunner runner(String projectPath, File tempDir) throws IOException {
         File gradleUserHome = new File(tempDir, "gradleUserHome");
         File pluginsDir = new File(gradleUserHome, "lib/plugins");
         assertTrue(pluginsDir.mkdirs());
@@ -112,24 +183,57 @@ public class E2ETests {
         Path testLibPath = testProjectDir.toPath().resolve("testlibs");
         copyDirectory(testLibDir.toPath(), testLibPath);
         String testLibAbsolutePath = testLibPath.toFile().getAbsolutePath();
+        Path metadata = testLibPath.resolve("maven-metadata").resolve("testlibs.xml");
+        Files.writeString(metadata, Files.readString(metadata).replace("@TESTLIBS@", testLibAbsolutePath));
 
-        BuildResult result = GradleRunner.create()
+        return withoutInstalledInitScripts(GradleRunner.create(), tempDir)
                 .withProjectDir(testProjectDir)
                 .withArguments(
                         "--gradle-user-home", gradleUserHome.getAbsolutePath(),
                         "--init-script", initScript.getAbsolutePath(),
                         "build",
+                        "-Dmaven.metadata.dir=" + metadata.getParent(),
                         "-Dmaven.poms.dir=" + testLibAbsolutePath,
                         "-Djava.library.dir=" + testLibAbsolutePath,
+                        "-Dgenerate.sbom=cyclonedx",
                         "--offline"
                 )
-                .forwardOutput()
-                 .build();
+                .forwardOutput();
+    }
 
-        System.out.println(result.getOutput());
+    /**
+     * Gradle applies every script in its installation's init.d, and on ALT that
+     * directory holds the installed xgradle. The build under test gets an installation
+     * that links everything else, so only the plugin being tested is applied.
+     */
+    private static GradleRunner withoutInstalledInitScripts(GradleRunner runner, File tempDir) throws IOException {
+        String home = System.getProperty("xgradle.test.gradleHome");
+        if (home == null || !Files.isDirectory(Path.of(home, "init.d"))) {
+            return runner;
+        }
+        Path installation = Files.createDirectories(tempDir.toPath().resolve("gradleInstallation"));
+        try (Stream<Path> entries = Files.list(Path.of(home))) {
+            entries.filter(entry -> !entry.getFileName().toString().equals("init.d"))
+                    .forEach(entry -> link(installation.resolve(entry.getFileName()), entry));
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
+        return runner.withGradleInstallation(installation.toFile());
+    }
 
-        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":build"))
-                .getOutcome());
+    private static void link(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {
+        Path cache = gradleUserHome.toPath().resolve("caches/xgradle/ivy");
+        try (Stream<Path> repositories = Files.list(cache)) {
+            return repositories.anyMatch(repo -> Files.isRegularFile(repo.resolve(module).resolve("ivy.xml")));
+        }
     }
 
     private String loadResource(String resourceName) throws IOException {

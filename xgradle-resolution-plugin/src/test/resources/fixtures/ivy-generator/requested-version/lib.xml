@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>lib</artifactId>
+      <version>2.0</version>
+      <path>@DIR@/lib.jar</path>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>lib</artifactId>
+      <version>1.0</version>
+      <path>@DIR@/lib1.jar</path>
+      <compatVersions>
+        <version>1.0</version>
+      </compatVersions>
+    </artifact>
+  </artifacts>
+</metadata>

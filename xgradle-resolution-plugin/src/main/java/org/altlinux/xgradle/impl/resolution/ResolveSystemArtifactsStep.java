@@ -47,7 +47,8 @@ final class ResolveSystemArtifactsStep implements ResolutionStep {
     @Override
     public void execute(ResolutionContext resolutionContext) {
         artifactResolver.resolve(
-                resolutionContext.getAllDependencies(),
+                resolutionContext.getProjectDependencies(),
+                resolutionContext.getRequestedVersions(),
                 resolutionContext.getGradle().getRootProject().getLogger()
         );
         artifactResolver.filter();

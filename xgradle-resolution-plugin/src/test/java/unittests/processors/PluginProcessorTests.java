@@ -21,11 +21,9 @@ import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.processors.ProcessorsModule;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
-import org.altlinux.xgradle.interfaces.processors.BomProcessor;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
-import org.altlinux.xgradle.interfaces.processors.TransitiveProcessor;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
+import org.gradle.api.Action;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.gradle.plugin.management.PluginManagementSpec;
@@ -55,15 +53,6 @@ class PluginProcessorTests {
 
     @Mock
     private VersionScanner scanner;
-
-    @Mock
-    private PomParser pomParser;
-
-    @Mock
-    private BomProcessor bomProcessor;
-
-    @Mock
-    private TransitiveProcessor transitiveProcessor;
 
     @Mock
     private Logger logger;
@@ -107,7 +96,7 @@ class PluginProcessorTests {
 
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            org.gradle.api.Action<PluginResolveDetails> action = invocation.getArgument(0);
+            Action<PluginResolveDetails> action = invocation.getArgument(0);
             action.execute(details);
             return null;
         }).when(strategy).eachPlugin(any());
@@ -117,9 +106,6 @@ class PluginProcessorTests {
                     @Override
                     protected void configure() {
                         bind(VersionScanner.class).toInstance(scanner);
-                        bind(PomParser.class).toInstance(pomParser);
-                        bind(BomProcessor.class).toInstance(bomProcessor);
-                        bind(TransitiveProcessor.class).toInstance(transitiveProcessor);
                         bind(Logger.class).toInstance(logger);
                     }
                 })

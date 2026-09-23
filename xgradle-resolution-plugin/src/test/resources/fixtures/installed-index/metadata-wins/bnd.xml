@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>biz.aQute.bnd</groupId>
+      <artifactId>biz.aQute.bnd.gradle</artifactId>
+      <version>9.9</version>
+      <path>/usr/share/java/bnd-from-metadata.jar</path>
+    </artifact>
+  </artifacts>
+</metadata>

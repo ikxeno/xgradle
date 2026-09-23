@@ -18,11 +18,14 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionPipeline;
+import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 /**
  * Pipeline for Resolution.
  * Implements {@link ResolutionPipeline}.
@@ -47,8 +50,14 @@ final class DefaultResolutionPipeline implements ResolutionPipeline {
     }
 
     private static List<ResolutionStep> orderSteps(Set<ResolutionStep> steps) {
-        List<ResolutionStep> ordered = new ArrayList<>(steps);
-        ordered.sort(ResolutionStepOrdering.INSTANCE);
-        return List.copyOf(ordered);
+        return steps.stream()
+                .sorted(Comparator.comparingInt(DefaultResolutionPipeline::order))
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    private static int order(ResolutionStep step) {
+        return Optional.ofNullable(step.getClass().getAnnotation(Order.class))
+                .map(Order::value)
+                .orElse(Order.LAST);
     }
 }

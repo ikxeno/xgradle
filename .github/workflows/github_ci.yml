@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publishing:
-    name: Publishing (JDK ${{ matrix.java }})
+    name: Publishing (Java ${{ matrix.java }} bytecode)
     runs-on: ubuntu-latest
     container:
       image: registry.altlinux.org/sisyphus/alt:latest
@@ -24,16 +24,12 @@ jobs:
           apt-get update
           apt-get install -y \
             glibc-pthread \
-            git
-          if [ "${{ matrix.java }}" = "11" ]; then
-            apt-get install -y java-11-openjdk-devel
-          else
-            apt-get install -y java-17-openjdk-devel
-          fi
+            git \
+            java-17-openjdk-devel
 
       - uses: actions/checkout@v4
 
-      - name: Publish to Maven Local (JDK ${{ matrix.java }})
+      - name: Publish to Maven Local (Java ${{ matrix.java }} bytecode)
         run: |
           if [ "${{ matrix.java }}" = "11" ]; then
             ./gradlew publishToMavenLocal -Djava11
@@ -42,7 +38,7 @@ jobs:
           fi
 
   tests:
-    name: Tests (JDK ${{ matrix.java }})
+    name: Tests (Java ${{ matrix.java }} bytecode)
     runs-on: ubuntu-latest
     container:
       image: registry.altlinux.org/sisyphus/alt:latest
@@ -60,23 +56,19 @@ jobs:
             git \
             google-gson \
             maven-lib \
-            shadow-gradle-plugin
-          if [ "${{ matrix.java }}" = "11" ]; then
-            apt-get install -y java-11-openjdk-devel
-          else
-            apt-get install -y java-17-openjdk-devel
-          fi
+            shadow-gradle-plugin \
+            java-17-openjdk-devel
 
       - uses: actions/checkout@v4
 
-      - name: Check (JDK 11)
+      - name: Check (Java 11 bytecode)
         if: matrix.java == 11
         run: |
           ./gradlew build \
             -Djava11 \
             --info
 
-      - name: Check (JDK 17)
+      - name: Check (Java 17 bytecode)
         if: matrix.java != 11
         run: |
           ./gradlew build \

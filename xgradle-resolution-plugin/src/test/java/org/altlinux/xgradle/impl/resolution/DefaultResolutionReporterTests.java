@@ -15,7 +15,6 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.altlinux.xgradle.interfaces.configurators.ArtifactConfigurator;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.execution.TaskExecutionGraph;
@@ -38,9 +37,6 @@ import static org.mockito.Mockito.*;
 class DefaultResolutionReporterTests {
 
     @Mock
-    private ArtifactConfigurator configurator;
-
-    @Mock
     private Gradle gradle;
 
     @Mock
@@ -55,7 +51,7 @@ class DefaultResolutionReporterTests {
     @Test
     @DisplayName("Does not register task graph when substitutions empty")
     void skipsTaskGraphWhenEmpty() {
-        DefaultResolutionReporter reporter = new DefaultResolutionReporter(configurator);
+        DefaultResolutionReporter reporter = new DefaultResolutionReporter();
 
         when(gradle.getRootProject()).thenReturn(root);
         when(root.getLogger()).thenReturn(logger);
@@ -69,7 +65,7 @@ class DefaultResolutionReporterTests {
     @Test
     @DisplayName("Registers task graph when substitutions present")
     void registersTaskGraphWhenNeeded() {
-        DefaultResolutionReporter reporter = new DefaultResolutionReporter(configurator);
+        DefaultResolutionReporter reporter = new DefaultResolutionReporter();
 
         when(gradle.getRootProject()).thenReturn(root);
         when(root.getLogger()).thenReturn(logger);

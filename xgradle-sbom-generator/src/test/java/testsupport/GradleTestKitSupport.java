@@ -21,6 +21,7 @@ import org.gradle.testkit.runner.GradleRunner;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
 public final class GradleTestKitSupport {
 
     private static final String TESTLIBS_DIR_NAME = "testlibs";
+    private static final String METADATA_DIR_NAME = "maven-metadata";
     private static final String INIT_SCRIPT_NAME = "xgradle-resolution-plugin.gradle";
     private static final String INIT_SCRIPT_TEMPLATE_RESOURCE = "xgradle-resolution-plugin-test.gradle";
 
@@ -105,7 +107,10 @@ public final class GradleTestKitSupport {
     ) throws IOException {
         Path testLibPath = projectDir.resolve(TESTLIBS_DIR_NAME);
         copyDirectory(testLibDir.toPath(), testLibPath);
-        return testLibPath.toFile().getAbsolutePath();
+        String testLibAbsolutePath = testLibPath.toFile().getAbsolutePath();
+        Path metadata = testLibPath.resolve(METADATA_DIR_NAME).resolve("testlibs.xml");
+        Files.writeString(metadata, Files.readString(metadata).replace("@TESTLIBS@", testLibAbsolutePath));
+        return testLibAbsolutePath;
     }
 
     public static BuildResult runOfflineBuild(
@@ -115,7 +120,7 @@ public final class GradleTestKitSupport {
             String testLibAbsolutePath,
             String format,
             String... extraArgs
-    ) {
+    ) throws IOException {
         List<String> args = new ArrayList<>();
         args.add("--gradle-user-home");
         args.add(gradleUserHome.getAbsolutePath());
@@ -123,6 +128,7 @@ public final class GradleTestKitSupport {
         args.add(initScript.getAbsolutePath());
         args.add("build");
         args.add("--offline");
+        args.add("-Dmaven.metadata.dir=" + Path.of(testLibAbsolutePath, METADATA_DIR_NAME));
         args.add("-Dmaven.poms.dir=" + testLibAbsolutePath);
         args.add("-Djava.library.dir=" + testLibAbsolutePath);
         args.add("-Dgenerate.sbom=" + format);
@@ -131,11 +137,39 @@ public final class GradleTestKitSupport {
             args.addAll(Arrays.asList(extraArgs));
         }
 
-        return GradleRunner.create()
+        return withoutInstalledInitScripts(GradleRunner.create(), gradleUserHome.getParentFile())
                 .withProjectDir(projectDir)
                 .withArguments(args.toArray(new String[0]))
                 .forwardOutput()
                 .build();
+    }
+
+    /**
+     * Gradle applies every script in its installation's init.d, and on ALT that
+     * directory holds the installed xgradle. The build under test gets an installation
+     * that links everything else, so only the plugin being tested is applied.
+     */
+    private static GradleRunner withoutInstalledInitScripts(GradleRunner runner, File tempDir) throws IOException {
+        String home = System.getProperty("xgradle.test.gradleHome");
+        if (home == null || !Files.isDirectory(Path.of(home, "init.d"))) {
+            return runner;
+        }
+        Path installation = Files.createDirectories(tempDir.toPath().resolve("gradleInstallation"));
+        try (Stream<Path> entries = Files.list(Path.of(home))) {
+            entries.filter(entry -> !entry.getFileName().toString().equals("init.d"))
+                    .forEach(entry -> link(installation.resolve(entry.getFileName()), entry));
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
+        return runner.withGradleInstallation(installation.toFile());
+    }
+
+    private static void link(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public static void copyDirectory(

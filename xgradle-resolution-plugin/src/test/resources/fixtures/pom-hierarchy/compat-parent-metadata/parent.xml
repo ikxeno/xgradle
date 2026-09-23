@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>parent</artifactId>
+      <extension>pom</extension>
+      <version>2</version>
+      <path>@DIR@/parent-2.pom</path>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>parent</artifactId>
+      <extension>pom</extension>
+      <version>1</version>
+      <path>@DIR@/parent-1.pom</path>
+      <compatVersions>
+        <version>1</version>
+      </compatVersions>
+    </artifact>
+  </artifacts>
+</metadata>

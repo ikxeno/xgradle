@@ -18,7 +18,6 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.interfaces.configurators.ArtifactConfigurator;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionReporter;
 import org.altlinux.xgradle.impl.utils.logging.DependencyLogger;
 
@@ -33,11 +32,9 @@ import org.gradle.api.logging.Logger;
 @Singleton
 final class DefaultResolutionReporter implements ResolutionReporter {
 
-    private final ArtifactConfigurator artifactConfigurator;
 
     @Inject
-    DefaultResolutionReporter(ArtifactConfigurator artifactConfigurator) {
-        this.artifactConfigurator = artifactConfigurator;
+    DefaultResolutionReporter() {
     }
 
     @Override
@@ -52,12 +49,8 @@ final class DefaultResolutionReporter implements ResolutionReporter {
         depLogger.logSection("Resolved system artifacts", logger);
         depLogger.logResolvedArtifacts(resolutionContext.getSystemArtifacts(), logger);
 
-        depLogger.logSection("Test context dependencies", logger);
-        depLogger.logTestContextDependencies(resolutionContext.getTestContextDependencies(), logger);
 
         depLogger.logSection("===== DEPENDENCY RESOLUTION COMPLETED =====", logger);
-        depLogger.logSection("Added artifacts to configurations", logger);
-        depLogger.logConfigurationArtifacts(artifactConfigurator.getConfigurationArtifacts(), logger);
 
         if (!resolutionContext.getNotFound().isEmpty() || !resolutionContext.getSkipped().isEmpty()) {
             depLogger.logSection("Skipped dependencies", logger);
@@ -68,13 +61,11 @@ final class DefaultResolutionReporter implements ResolutionReporter {
             );
         }
 
-        if (!resolutionContext.getOverrideLogs().isEmpty()
-                || !resolutionContext.getApplyLogs().isEmpty()) {
+        if (!resolutionContext.getOverrideLogs().isEmpty()) {
             resolutionContext.getGradle().getTaskGraph().whenReady(taskGraph -> {
                 depLogger.logSection("Dependency substitutions", logger);
                 depLogger.logSubstitutions(
                         resolutionContext.getOverrideLogs(),
-                        resolutionContext.getApplyLogs(),
                         logger
                 );
             });

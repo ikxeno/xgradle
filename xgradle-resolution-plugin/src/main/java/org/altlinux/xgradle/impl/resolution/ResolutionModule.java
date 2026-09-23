@@ -18,6 +18,8 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
+
 import org.altlinux.xgradle.impl.collectors.DefaultSbomComponentCollector;
 import org.altlinux.xgradle.impl.services.DefaultSbomGenerationService;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
@@ -39,6 +41,7 @@ public final class ResolutionModule extends AbstractModule {
         bind(ResolutionReporter.class).to(DefaultResolutionReporter.class);
         bind(SbomComponentCollector.class).to(DefaultSbomComponentCollector.class);
         bind(SbomGenerationService.class).to(DefaultSbomGenerationService.class);
+        bind(ResolvedJarsCollector.class).to(ResolvedJars.class);
         bindResolutionSteps();
     }
 
@@ -46,17 +49,10 @@ public final class ResolutionModule extends AbstractModule {
         Multibinder<ResolutionStep> steps =
                 Multibinder.newSetBinder(binder(), ResolutionStep.class);
 
-        steps.addBinding().to(ConfigureSystemRepositoryStep.class);
-        steps.addBinding().to(CollectPomFilesStep.class);
-        steps.addBinding().to(BuildPomIndexStep.class);
         steps.addBinding().to(CollectDeclaredDependenciesStep.class);
-        steps.addBinding().to(CollectConfigurationMetadataStep.class);
-        steps.addBinding().to(ApplyBomsStep.class);
         steps.addBinding().to(ResolveSystemArtifactsStep.class);
-        steps.addBinding().to(ResolveTransitivesAndScanMissingStep.class);
-        steps.addBinding().to(ConfigureArtifactsStep.class);
-        steps.addBinding().to(ApplySubstitutionStep.class);
-        steps.addBinding().to(CollectResolvedJarsStep.class);
+        steps.addBinding().to(FindMissingTransitivesStep.class);
+        steps.addBinding().to(RecordOverridesStep.class);
         steps.addBinding().to(GenerateSbomStep.class);
     }
 }

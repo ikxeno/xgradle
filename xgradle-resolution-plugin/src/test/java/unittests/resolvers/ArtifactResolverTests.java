@@ -15,10 +15,9 @@
  */
 package unittests.resolvers;
 
-import org.altlinux.xgradle.impl.enums.MavenScope;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.impl.resolvers.DefaultArtifactResolver;
-import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.logging.Logger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,8 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,49 +40,34 @@ import static org.mockito.Mockito.*;
 class ArtifactResolverTests {
 
     @Mock
-    private VersionScanner scanner;
+    private ModuleFinder moduleFinder;
 
     @Mock
     private Logger logger;
 
     @Test
-    @DisplayName("Resolve stores results and filter drops test/bom")
+    @DisplayName("Looks declared dependencies up in the index and filter drops BOMs")
     void resolvesAndFilters() {
-        DefaultArtifactResolver resolver = new DefaultArtifactResolver(scanner);
-
-        MavenCoordinate normal = MavenCoordinate.builder()
+        DefaultArtifactResolver resolver = new DefaultArtifactResolver(moduleFinder);
+        MavenCoordinate lib = MavenCoordinate.builder()
                 .groupId("g")
                 .artifactId("lib")
                 .version("1")
                 .build();
-
-        MavenCoordinate test = MavenCoordinate.builder()
-                .groupId("g")
-                .artifactId("test")
-                .version("1")
-                .scope(MavenScope.TEST)
-                .build();
-
         MavenCoordinate bom = MavenCoordinate.builder()
                 .groupId("g")
                 .artifactId("bom")
                 .version("1")
                 .packaging("pom")
                 .build();
+        when(moduleFinder.findModule("g", "lib", Set.of("1"))).thenReturn(Optional.of(lib));
+        when(moduleFinder.findModule("g", "bom", Set.of())).thenReturn(Optional.of(bom));
+        when(moduleFinder.findModule("g", "missing", Set.of())).thenReturn(Optional.empty());
 
-        Map<String, MavenCoordinate> scanned = new HashMap<>();
-        scanned.put("g:lib", normal);
-        scanned.put("g:test", test);
-        scanned.put("g:bom", bom);
-        when(scanner.scanSystemArtifacts(Set.of("g:lib"))).thenReturn(scanned);
-        when(scanner.getNotFoundDependencies()).thenReturn(Set.of("g:missing"));
-
-        resolver.resolve(Set.of("g:lib"), logger);
+        resolver.resolve(Set.of("g:lib", "g:bom", "g:missing"), Map.of("g:lib", Set.of("1")), logger);
         resolver.filter();
 
-        assertTrue(resolver.getSystemArtifacts().containsKey("g:lib"));
-        assertFalse(resolver.getSystemArtifacts().containsKey("g:test"));
-        assertFalse(resolver.getSystemArtifacts().containsKey("g:bom"));
+        assertEquals(Map.of("g:lib", lib), resolver.getSystemArtifacts());
         assertEquals(Set.of("g:missing"), resolver.getNotFoundDependencies());
     }
 }

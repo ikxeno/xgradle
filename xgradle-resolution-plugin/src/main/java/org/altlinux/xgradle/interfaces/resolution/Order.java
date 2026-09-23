@@ -28,7 +28,12 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+@Target(ElementType.TYPE)
 public @interface Order {
-    int value() default Ordered.LOWEST_PRECEDENCE;
+
+    /** Order of a step without the annotation, and the default value: after all other steps. */
+    int LAST = Integer.MAX_VALUE;
+
+    /** Steps run in ascending order. */
+    int value() default LAST;
 }

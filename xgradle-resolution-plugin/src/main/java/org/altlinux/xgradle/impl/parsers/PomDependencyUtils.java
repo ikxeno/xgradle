@@ -21,6 +21,7 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.apache.maven.model.Dependency;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility methods for converting and resolving Maven dependencies.
@@ -47,6 +48,11 @@ final class PomDependencyUtils {
                                 ? dependency.getType()
                                 : MavenPackaging.JAR.getPackaging()
                 )
+                .optional(Boolean.parseBoolean(dependency.getOptional()))
+                .classifier(dependency.getClassifier())
+                .exclusions(dependency.getExclusions().stream()
+                        .map(exclusion -> exclusion.getGroupId() + ":" + exclusion.getArtifactId())
+                        .collect(Collectors.toList()))
                 .build();
     }
 
@@ -80,6 +86,7 @@ final class PomDependencyUtils {
                                 properties
                         )
                 )
+                .classifier(propertiesCollector.resolve(coordinate.getClassifier(), properties))
                 .scope(
                         propertiesCollector.resolve(
                                 coordinate.getScope() != null

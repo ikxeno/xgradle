@@ -1,0 +1,35 @@
+/*
+ * Copyright 2025 BaseALT Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License  for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.altlinux.xgradle.interfaces.managers;
+
+import org.gradle.api.initialization.Settings;
+
+/**
+ * Resolves the classpath of build scripts, declared in {@code buildscript { }}
+ * blocks, from installed artifacts.
+ *
+ * @author Ivan Khanas <xeno@altlinux.org>
+ */
+public interface ScriptClasspathManager extends Manager<Settings> {
+
+    /**
+     * Configures the settings script and every project script of the build. Must run
+     * before the settings script is evaluated, since {@code buildscript { }} blocks
+     * are resolved while their script runs.
+     */
+    @Override
+    void configure(Settings settings);
+}

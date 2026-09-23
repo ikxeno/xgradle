@@ -50,12 +50,21 @@ final class PomDependenciesParser {
                 .map(PomDependencyUtils::convertDependency)
                 .map(coordinate -> PomDependencyUtils.resolveProperties(coordinate, properties, propertiesCollector))
                 .map(coordinate -> applyDependencyManagement(coordinate, managedByGroupAndArtifact))
-                .filter(MavenCoordinate::isValid)
+                .filter(PomDependenciesParser::hasModule)
                 .forEach(coordinate -> resolvedByGroupAndArtifact.put(
                         coordinate.getGroupId() + ":" + coordinate.getArtifactId(),
                         coordinate
                 ));
         return resolvedByGroupAndArtifact;
+    }
+
+    /**
+     * A dependency needs a groupId and an artifactId. Its version may be missing: an
+     * installed module is found without it, as XMvn falls back to the system version.
+     */
+    private static boolean hasModule(MavenCoordinate coordinate) {
+        return coordinate.getGroupId() != null && !coordinate.getGroupId().isBlank()
+                && coordinate.getArtifactId() != null && !coordinate.getArtifactId().isBlank();
     }
 
     private MavenCoordinate applyDependencyManagement(

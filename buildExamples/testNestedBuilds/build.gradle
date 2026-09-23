@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.example:lib:1.0'
+}
+
+println "buildSrc classpath: " + org.example.buildlogic.Json.of([1, 2])

@@ -38,8 +38,9 @@
 # Gradle launch script.
 %__gradle gradle
 
-# Configure repositories.
-%_xgradleflags -Dmaven.poms.dir=%_mavenpomdir -Djava.library.dir=%_javadir
+# Default flags for xgradle builds. Artifacts come from the system, so Gradle runs offline.
+# Metadata locations come from the XMvn configuration.
+%_xgradleflags --offline
 
 # Run Gradle publication task.
 %gradle_publish %__gradle publishToMavenLocal %_xgradleflags

@@ -17,8 +17,6 @@ package org.altlinux.xgradle.interfaces.services;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
-import java.util.Map;
-import java.util.Set;
 /**
   * Scans version.
 
@@ -28,21 +26,9 @@ import java.util.Set;
 
 public interface VersionScanner {
 /**
-  * Scans system artifacts.
-
- */
-
-    Map<String, MavenCoordinate> scanSystemArtifacts(Set<String> projectDependencies);
-/**
   * Finds plugin artifact.
 
  */
 
     MavenCoordinate findPluginArtifact(String pluginId);
-/**
-  * Returns not found dependencies.
-
- */
-
-    Set<String> getNotFoundDependencies();
 }

@@ -47,15 +47,6 @@ public interface PomParser {
     List<MavenCoordinate> parseDependencies(Path pomPath);
 
     /**
-     * Parses dependencies from dependencyManagement section.
-     *
-     * @param pomPath path to the POM file
-     *
-     * @return list of managed dependency coordinates (may be empty)
-     */
-    List<MavenCoordinate> parseDependencyManagement(Path pomPath);
-
-    /**
      * Parses properties section of a POM file.
      *
      * @param pomPath path to the POM file

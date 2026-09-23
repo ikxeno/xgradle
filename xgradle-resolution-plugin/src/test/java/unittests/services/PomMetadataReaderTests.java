@@ -19,16 +19,16 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
-import org.altlinux.xgradle.impl.caches.CachesModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.services.ServicesModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
-import org.altlinux.xgradle.interfaces.services.ArtifactVerifier;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.logging.Logger;
+import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +39,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.mock;
 
 /**
  * @author Ivan Khanas <xeno@altlinux.org>
@@ -54,10 +55,7 @@ class PomMetadataReaderTests {
     private VersionScanner versionScanner;
 
     @Mock
-    private ArtifactVerifier artifactVerifier;
-
-    @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Test
     @DisplayName("Reads project URL SCM URL and licenses")
@@ -94,7 +92,6 @@ class PomMetadataReaderTests {
     private Injector createInjector() {
         return Guice.createInjector(
                 Modules.override(
-                        new CachesModule(),
                         new ParsersModule(),
                         new MavenModule(),
                         new ServicesModule()
@@ -102,9 +99,10 @@ class PomMetadataReaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
+                                .toInstance(mock(MetadataIndex.class));
                         bind(VersionScanner.class).toInstance(versionScanner);
-                        bind(ArtifactVerifier.class).toInstance(artifactVerifier);
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
                 })
         );

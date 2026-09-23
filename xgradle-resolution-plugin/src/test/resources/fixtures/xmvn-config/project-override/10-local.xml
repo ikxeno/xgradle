@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="http://fedorahosted.org/xmvn/CONFIG/2.0.0">
+  <resolverSettings>
+    <metadataRepositories>
+      <repository>/opt/metadata</repository>
+    </metadataRepositories>
+    <ignoreDuplicateMetadata>false</ignoreDuplicateMetadata>
+  </resolverSettings>
+</configuration>

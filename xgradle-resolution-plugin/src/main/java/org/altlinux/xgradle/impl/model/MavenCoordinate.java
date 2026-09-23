@@ -18,6 +18,7 @@ package org.altlinux.xgradle.impl.model;
 import org.altlinux.xgradle.impl.enums.MavenScope;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 /**
  * Implementation for Maven Coordinate.
@@ -33,7 +34,9 @@ public final class MavenCoordinate {
     private final String packaging;
     private final MavenScope scope;
     private final Path pomPath;
-    private final boolean testContext;
+    private final boolean optional;
+    private final String classifier;
+    private final List<String> exclusions;
 
     MavenCoordinate(MavenCoordinateBuilder builder) {
         this.groupId = builder.groupId;
@@ -42,7 +45,9 @@ public final class MavenCoordinate {
         this.packaging = builder.packaging;
         this.scope = builder.scope;
         this.pomPath = builder.pomPath;
-        this.testContext = builder.testContext;
+        this.optional = builder.optional;
+        this.classifier = builder.classifier == null ? "" : builder.classifier;
+        this.exclusions = List.copyOf(builder.exclusions);
     }
 
     public static MavenCoordinateBuilder builder() {
@@ -59,8 +64,11 @@ public final class MavenCoordinate {
                 && notEmpty(version);
     }
 
-    public boolean isBom() {
-        return "pom".equals(packaging);
+    /**
+     * Whether the module has no jar: a parent, a BOM or a Gradle plugin marker.
+     */
+    public boolean isPomOnly() {
+        return ArtifactKey.POM_EXTENSION.equals(packaging);
     }
 
     public String getGroupId() {
@@ -87,8 +95,23 @@ public final class MavenCoordinate {
         return pomPath;
     }
 
-    public boolean isTestContext() {
-        return testContext;
+
+    /**
+     * Whether this coordinate is an optional dependency; Maven does not follow those transitively.
+     */
+    public boolean isOptional() {
+        return optional;
+    }
+
+    public String getClassifier() {
+        return classifier;
+    }
+
+    /**
+     * Modules a dependency excludes, as {@code groupId:artifactId}.
+     */
+    public List<String> getExclusions() {
+        return exclusions;
     }
 
     @Override

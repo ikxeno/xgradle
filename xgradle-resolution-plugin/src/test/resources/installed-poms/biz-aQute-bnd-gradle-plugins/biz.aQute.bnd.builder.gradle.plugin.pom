@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>biz.aQute.bnd.builder</groupId>
+  <artifactId>biz.aQute.bnd.builder.gradle.plugin</artifactId>
+  <version>7.1.0</version>
+  <packaging>pom</packaging>
+  <name>Bnd Gradle Plugin for Gradle Projects</name>
+  <description>Gradle Plugin for developing OSGi bundles with Bnd in a typical Gradle build. Bnd is the premiere tool for creating OSGi bundles. This Gradle plugin is from the team that develops Bnd. See https://github.com/bndtools/bnd/blob/7.1.0/gradle-plugins/README.md for information on using in a typical Gradle build.</description>
+  <url>https://bnd.bndtools.org/</url>
+  <organization>
+    <name>Bndtools</name>
+    <url>https://bndtools.org/</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>(Apache-2.0 OR EPL-2.0)</name>
+      <url>https://opensource.org/licenses/Apache-2.0,https://opensource.org/licenses/EPL-2.0</url>
+      <distribution>repo</distribution>
+      <comments>This program and the accompanying materials are made available under the terms of the Apache License, Version 2.0, or the Eclipse Public License 2.0.</comments>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>bjhargrave</id>
+      <name>BJ Hargrave</name>
+      <email>bj@hargrave.dev</email>
+      <url>https://github.com/bjhargrave</url>
+      <organization>IBM</organization>
+      <organizationUrl>https://developer.ibm.com</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>America/New_York</timezone>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/bndtools/bnd.git</connection>
+    <developerConnection>scm:git:git@github.com:bndtools/bnd.git</developerConnection>
+    <tag>7.1.0</tag>
+    <url>https://github.com/bndtools/bnd</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>biz.aQute.bnd</groupId>
+      <artifactId>biz.aQute.bnd.gradle</artifactId>
+      <version>7.1.0</version>
+    </dependency>
+  </dependencies>
+</project>

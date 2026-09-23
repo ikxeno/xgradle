@@ -18,10 +18,9 @@ package org.altlinux.xgradle.interfaces.services;
 import org.altlinux.xgradle.impl.enums.SbomFormat;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.logging.Logger;
 
+import java.io.File;
 import java.util.Collection;
-import java.util.Map;
 
 /**
  * Generates SBOM reports from snapshots captured during resolution.
@@ -30,11 +29,16 @@ import java.util.Map;
  */
 public interface SbomGenerationService {
 
+    /**
+     * @param artifacts       declared system dependencies
+     * @param pluginArtifacts resolved Gradle plugins
+     * @param resolvedJars    every jar the build resolved
+     */
     void generate(
             Gradle gradle,
             SbomFormat format,
-            Map<String, MavenCoordinate> artifactsSnapshot,
-            Collection<MavenCoordinate> pluginArtifactsSnapshot,
-            Logger logger
+            Collection<MavenCoordinate> artifacts,
+            Collection<MavenCoordinate> pluginArtifacts,
+            Collection<File> resolvedJars
     );
 }

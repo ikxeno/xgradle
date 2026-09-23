@@ -32,7 +32,7 @@ public interface ArtifactResolver {
   * Resolves the target.
 
  */
-    void resolve(Set<String> dependencies, Logger logger);
+    void resolve(Set<String> dependencies, Map<String, Set<String>> requestedVersions, Logger logger);
 /**
   * Filter the operation.
 

@@ -30,8 +30,7 @@ Generated file is written to:
 
 ```bash
 gradle build \
-  -Djava.library.dir=/usr/share/java \
-  -Dmaven.poms.dir=/usr/share/maven-poms \
+  -Dmaven.metadata.dir=/usr/share/maven-metadata \
   -Dgenerate.sbom=cyclonedx \
   --offline
 ```
