@@ -99,12 +99,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             throw new GradleException("Cannot write the system ivy repository to " + root, e);
         }
         removeUnused(cacheDirectory, root);
-
-        List<String> missing = modules.stream()
-                .flatMap(module -> missingDependencies(module).stream())
-                .sorted()
-                .collect(Collectors.toList());
-        return new IvyRepository(root, missing);
+        return new IvyRepository(root);
     }
 
     private void write(Path cacheDirectory, Path root, Collection<Module> modules) throws IOException {
@@ -272,16 +267,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 .flatMap(dep -> index.revision(dep.toKey())
                         .map(rev -> new ResolvedDependency(dep.getGroupId(), dep.getArtifactId(), rev, dep))
                         .stream());
-    }
-
-    private List<String> missingDependencies(Module module) {
-        if (module.aliasOf != null) {
-            return List.of();
-        }
-        return module.declaredDependencies()
-                .filter(dep -> index.revision(dep.toKey()).isEmpty())
-                .map(dep -> module.org + ":" + module.name + ":" + module.rev + " -> " + dep)
-                .collect(Collectors.toList());
     }
 
     private static String dependency(ResolvedDependency resolved) {

@@ -76,7 +76,7 @@ class RepositoryManagerTests {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         repositories = project.getRepositories();
         repositories.mavenCentral();
-        repository = new IvyRepository(temp.resolve("repo"), List.of());
+        repository = new IvyRepository(temp.resolve("repo"));
     }
 
     @Test

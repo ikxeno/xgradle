@@ -96,8 +96,6 @@ class IvyRepositoryGeneratorTests {
                 "an alias resolves to the aliased module");
         assertEquals(Set.of("lib.jar"), resolve(repository, "org.example:lib:1.5", "org.renamed:lib:1.5"),
                 "old and new coordinates of a relocated artifact put one jar on the classpath");
-        assertEquals(List.of("org.example:app:2.0 -> org.example:absent:1.0"),
-                repository.getMissingDependencies());
     }
 
     @Test

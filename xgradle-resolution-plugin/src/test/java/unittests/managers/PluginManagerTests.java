@@ -91,7 +91,7 @@ class PluginManagerTests {
     @Test
     @DisplayName("Configures the system repository and processes plugins when artifacts are installed")
     void configuresWhenArtifactsInstalled(@TempDir Path tempDir) {
-        IvyRepository repository = new IvyRepository(tempDir, List.of());
+        IvyRepository repository = new IvyRepository(tempDir);
         when(index.artifacts()).thenReturn(List.of(mock(XmvnArtifact.class)));
         when(settings.getGradle()).thenReturn(gradle);
         when(generator.generate(gradle)).thenReturn(repository);

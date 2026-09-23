@@ -16,7 +16,6 @@
 package org.altlinux.xgradle.impl.model;
 
 import java.nio.file.Path;
-import java.util.List;
 
 /**
  * Generated ivy repository of installed artifacts.
@@ -26,22 +25,12 @@ import java.util.List;
 public final class IvyRepository {
 
     private final Path root;
-    private final List<String> missingDependencies;
 
-    public IvyRepository(Path root, List<String> missingDependencies) {
+    public IvyRepository(Path root) {
         this.root = root;
-        this.missingDependencies = List.copyOf(missingDependencies);
     }
 
     public Path getRoot() {
         return root;
-    }
-
-    /**
-     * Dependencies named in metadata that no installed artifact provides,
-     * as {@code "<module> -> <dependency>"}. They are left out of the ivy descriptors.
-     */
-    public List<String> getMissingDependencies() {
-        return missingDependencies;
     }
 }
