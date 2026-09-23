@@ -19,6 +19,7 @@ import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Artifact index that resolves keys like XMvn's {@code DefaultMetadataResult}.
@@ -40,6 +43,7 @@ final class DefaultMetadataIndex implements MetadataIndex {
     private final List<XmvnArtifact> artifacts;
     private final Map<ArtifactKey, XmvnArtifact> byKey;
     private final List<String> conflicts = new ArrayList<>();
+    private volatile Map<Path, XmvnArtifact> byRealPath;
 
     /**
      * Indexes the artifacts in the given order.
@@ -96,6 +100,19 @@ final class DefaultMetadataIndex implements MetadataIndex {
     public Optional<XmvnArtifact> resolve(ArtifactKey key) {
         return Optional.ofNullable(byKey.get(key))
                 .or(() -> Optional.ofNullable(byKey.get(key.withVersion(ArtifactKey.SYSTEM_VERSION))));
+    }
+
+    @Override
+    public Optional<XmvnArtifact> artifactAt(Path file) {
+        if (byRealPath == null) {
+            byRealPath = artifacts.stream()
+                    .filter(artifact -> artifact.getPath() != null)
+                    .collect(Collectors.toUnmodifiableMap(
+                            artifact -> RealPaths.of(artifact.getPath()),
+                            Function.identity(),
+                            (first, second) -> first));
+        }
+        return Optional.ofNullable(byRealPath.get(RealPaths.of(file)));
     }
 
     @Override

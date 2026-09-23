@@ -196,6 +196,20 @@ class MetadataIndexTests {
     }
 
     @Test
+    @DisplayName("finds an installed artifact by a symlink to its file")
+    void findsArtifactThroughSymlink(@TempDir Path dir) throws IOException {
+        Path jar = Files.writeString(dir.resolve("a.jar"), "jar");
+        Path link = Files.createSymbolicLink(dir.resolve("a-1.jar"), jar);
+        Path metadataDir = Files.createDirectories(dir.resolve("metadata"));
+        Files.writeString(metadataDir.resolve("a.xml"), metadata(jar.toString()));
+
+        index = build(List.of(metadataDir), true);
+
+        assertEquals("a", index.artifactAt(link).orElseThrow().getArtifactId());
+        assertTrue(index.artifactAt(dir.resolve("other.jar")).isEmpty());
+    }
+
+    @Test
     @DisplayName("fails on a missing location instead of skipping it")
     void failsOnMissingLocation(@TempDir Path dir) {
         ProvisionException e = assertThrows(ProvisionException.class,

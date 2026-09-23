@@ -79,7 +79,7 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
         if (!Files.isDirectory(pomsRoot)) {
             return List.of();
         }
-        Set<Path> described = skip.stream().map(DefaultPomArtifactReader::realPath).collect(Collectors.toSet());
+        Set<Path> described = skip.stream().map(RealPaths::of).collect(Collectors.toSet());
         List<XmvnArtifact> artifacts = pomFiles(pomsRoot).entrySet().stream()
                 .filter(pom -> !described.contains(pom.getKey()))
                 .flatMap(pom -> artifacts(pom.getValue(), pomsRoot.relativize(pom.getValue()), javaRoot))
@@ -99,17 +99,9 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                     .filter(file -> file.getFileName().toString().endsWith(".pom"))
                     .sorted(Comparator.comparing(Files::isSymbolicLink).thenComparing(Comparator.naturalOrder()))
                     .collect(Collectors.toMap(
-                            DefaultPomArtifactReader::realPath, Function.identity(), (first, second) -> first, TreeMap::new));
+                            RealPaths::of, Function.identity(), (first, second) -> first, TreeMap::new));
         } catch (IOException e) {
             throw new GradleException("Cannot list POM directory " + root, e);
-        }
-    }
-
-    private static Path realPath(Path path) {
-        try {
-            return path.toRealPath();
-        } catch (IOException e) {
-            return path.toAbsolutePath().normalize();
         }
     }
 

@@ -129,7 +129,7 @@ class DefaultSbomComponentCollectorTests {
         Path pomPath = Files.createFile(tempDir.resolve("failureaccess.pom"));
         Path repositoryLink = Files.createSymbolicLink(tempDir.resolve("failureaccess-1.0.3.jar"), installedJar);
 
-        when(index.artifacts()).thenReturn(List.of(
+        when(index.artifactAt(repositoryLink)).thenReturn(Optional.of(
                 XmvnArtifact.builder("com.google.guava", "failureaccess", "1.0.3", tempDir.resolve("guava.xml"))
                         .path(installedJar)
                         .build()));

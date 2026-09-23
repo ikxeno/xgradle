@@ -120,6 +120,11 @@ public interface MetadataIndex {
     }
 
     /**
+     * The installed artifact whose file the given path is, directly or through symlinks.
+     */
+    Optional<XmvnArtifact> artifactAt(Path file);
+
+    /**
      * All installed artifacts, in metadata read order.
      */
     List<XmvnArtifact> artifacts();
