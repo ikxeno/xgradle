@@ -32,18 +32,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -56,9 +49,8 @@ import java.util.stream.Stream;
  * built from the XMvn dependency list, the way XMvn builds an effective POM
  * for Maven, plus symlinks to the installed files.
  *
- * <p>The repository is written to a directory named after a fingerprint of its
- * content, first into a temporary directory that is then renamed, so
- * concurrent builds never see a half-written repository.
+ * <p>The repository is kept in a {@link RepositoryCache} under a fingerprint of
+ * its content.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -67,9 +59,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     /** Bump when the generated layout or descriptors change, to drop old caches. */
     private static final String FORMAT_VERSION = "2";
-    private static final String COMPLETE_MARKER = ".complete";
     private static final String CONF = "default";
-    private static final Duration UNUSED_FOR = Duration.ofDays(7);
 
     private final MetadataIndex index;
     private final Logger logger;
@@ -88,112 +78,15 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     private IvyRepository generateUncached(Path cacheDirectory) {
         Collection<Module> modules = modules().values();
-        Path root = cacheDirectory.resolve(fingerprint(modules));
         try {
-            if (isComplete(root)) {
-                Files.setLastModifiedTime(root.resolve(COMPLETE_MARKER), FileTime.from(Instant.now()));
-            } else {
-                write(cacheDirectory, root, modules);
-            }
+            Path root = new RepositoryCache(cacheDirectory, logger).obtain(fingerprint(modules), repo -> {
+                modules.forEach(module -> writeModule(repo, module));
+                logger.info("Generated system ivy repository with {} modules", modules.size());
+            });
+            return new IvyRepository(root);
         } catch (IOException | UncheckedIOException e) {
-            throw new GradleException("Cannot write the system ivy repository to " + root, e);
+            throw new GradleException("Cannot write the system ivy repository to " + cacheDirectory, e);
         }
-        removeUnused(cacheDirectory, root);
-        return new IvyRepository(root);
-    }
-
-    private void write(Path cacheDirectory, Path root, Collection<Module> modules) throws IOException {
-        Files.createDirectories(cacheDirectory);
-        Path tmp = Files.createTempDirectory(cacheDirectory, root.getFileName() + ".");
-        try {
-            modules.forEach(module -> writeModule(tmp, module));
-            Files.createFile(tmp.resolve(COMPLETE_MARKER));
-
-            moveIntoPlace(tmp, root);
-            logger.info("Generated system ivy repository with {} modules in {}", modules.size(), root);
-        } finally {
-            if (Files.exists(tmp)) {
-                deleteRecursively(tmp);
-            }
-        }
-    }
-
-    /**
-     * Removes repositories no build has used for {@link #UNUSED_FOR}, and
-     * temporary directories of builds that died that long ago. A build marks
-     * its repository as used by touching the complete marker.
-     */
-    private void removeUnused(Path cacheDirectory, Path current) {
-        Instant cutoff = Instant.now().minus(UNUSED_FOR);
-        try (Stream<Path> dirs = Files.list(cacheDirectory)) {
-            dirs.filter(dir -> !dir.equals(current))
-                    .filter(dir -> lastUsed(dir).isBefore(cutoff))
-                    .collect(Collectors.toList())
-                    .forEach(this::removeQuietly);
-        } catch (IOException e) {
-            logger.warn("Cannot clean up old system ivy repositories in {}: {}", cacheDirectory, e.toString());
-        }
-    }
-
-    private static Instant lastUsed(Path dir) {
-        Path marker = dir.resolve(COMPLETE_MARKER);
-        try {
-            return Files.getLastModifiedTime(Files.exists(marker) ? marker : dir).toInstant();
-        } catch (IOException e) {
-            return Instant.now();
-        }
-    }
-
-    private void removeQuietly(Path dir) {
-        try {
-            discard(dir);
-            logger.info("Removed unused system ivy repository {}", dir);
-        } catch (IOException e) {
-            logger.warn("Cannot remove unused system ivy repository {}: {}", dir, e.toString());
-        }
-    }
-
-    /**
-     * Renames the written repository to its final name. Another build may have
-     * renamed its copy first; depending on the platform the rename then fails with
-     * {@code FileAlreadyExistsException}, {@code DirectoryNotEmptyException} or a
-     * plain {@code FileSystemException}, so the outcome is judged by the marker.
-     * A directory without the marker is a leftover and is replaced.
-     */
-    private void moveIntoPlace(Path tmp, Path root) throws IOException {
-        try {
-            Files.move(tmp, root, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            if (isComplete(root)) {
-                logger.info("System ivy repository {} was generated concurrently", root);
-                return;
-            }
-            logger.warn("Replacing incomplete system ivy repository {}", root);
-            discard(root);
-            try {
-                Files.move(tmp, root, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException again) {
-                if (!isComplete(root)) {
-                    again.addSuppressed(e);
-                    throw again;
-                }
-            }
-        }
-    }
-
-    private static boolean isComplete(Path root) {
-        return Files.isRegularFile(root.resolve(COMPLETE_MARKER));
-    }
-
-    /** Renames a directory out of the way before deleting it, so no one sees it half deleted. */
-    private static void discard(Path dir) throws IOException {
-        Path trash = Files.createTempDirectory(dir.getParent(), dir.getFileName() + ".old.");
-        try {
-            Files.move(dir, trash.resolve("content"), StandardCopyOption.ATOMIC_MOVE);
-        } catch (NoSuchFileException e) {
-            // Discarded by another build already.
-        }
-        deleteRecursively(trash);
     }
 
     /**
@@ -328,14 +221,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     private static String escape(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
-    }
-
-    private static void deleteRecursively(Path dir) throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).collect(Collectors.toList())) {
-                Files.delete(path);
-            }
-        }
     }
 
     private static final class Module {
