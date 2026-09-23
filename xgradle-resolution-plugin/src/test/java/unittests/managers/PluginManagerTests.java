@@ -94,7 +94,8 @@ class PluginManagerTests {
         IvyRepository repository = new IvyRepository(tempDir);
         when(index.artifacts()).thenReturn(List.of(mock(XmvnArtifact.class)));
         when(settings.getGradle()).thenReturn(gradle);
-        when(generator.generate(gradle)).thenReturn(repository);
+        when(gradle.getGradleUserHomeDir()).thenReturn(tempDir.toFile());
+        when(generator.generate(tempDir.resolve("caches/xgradle/ivy"))).thenReturn(repository);
 
         manager.configure(settings);
 

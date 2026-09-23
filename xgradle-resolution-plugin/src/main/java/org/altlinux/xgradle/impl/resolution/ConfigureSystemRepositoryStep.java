@@ -18,6 +18,7 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 import org.altlinux.xgradle.interfaces.resolution.Order;
@@ -50,7 +51,7 @@ final class ConfigureSystemRepositoryStep implements ResolutionStep {
 
     @Override
     public void execute(ResolutionContext ctx) {
-        IvyRepository repository = repositoryGenerator.generate(ctx.getGradle());
+        IvyRepository repository = repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(ctx.getGradle()));
         ctx.getGradle().allprojects(project ->
                 repositoryManager.configureDependenciesRepository(project.getRepositories(), repository)
         );

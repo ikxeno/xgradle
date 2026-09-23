@@ -18,6 +18,7 @@ package org.altlinux.xgradle.impl.extensions;
 import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
@@ -60,6 +61,14 @@ public class SystemDepsExtension {
      */
     public static Path getJavaDir() {
         return property(JAVA_LIBRARY_DIR_KEY).map(Path::of).orElse(DEFAULT_JAVA_DIR);
+    }
+
+    /**
+     * Where the generated ivy repositories are cached: under the Gradle user home,
+     * next to Gradle's own caches, so they are shared by all builds of the user.
+     */
+    public static Path getIvyCacheDir(Gradle gradle) {
+        return gradle.getGradleUserHomeDir().toPath().resolve("caches").resolve("xgradle").resolve("ivy");
     }
 
     private static Optional<String> property(String key) {

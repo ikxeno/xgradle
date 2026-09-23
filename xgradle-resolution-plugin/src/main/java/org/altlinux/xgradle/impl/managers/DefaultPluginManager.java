@@ -18,6 +18,7 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
@@ -63,7 +64,7 @@ final class DefaultPluginManager  implements PluginManager {
             logger.warn("No installed artifacts found in XMvn metadata; plugins are not resolved from the system");
             return;
         }
-        repositoryManager.configurePluginsRepository(settings, repositoryGenerator.generate(settings.getGradle()));
+        repositoryManager.configurePluginsRepository(settings, repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(settings.getGradle())));
         pluginProcessor.process(settings);
     }
 }
