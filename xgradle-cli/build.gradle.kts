@@ -88,22 +88,12 @@ tasks.register<Task>("createShellScript") {
     val outputDir = layout.buildDirectory.dir("dist")
     val scriptFile = outputDir.get().file(project.name).asFile
 
+    val launcher = layout.projectDirectory.file("src/main/sh/launcher.sh")
+    inputs.file(launcher)
     outputs.file(scriptFile)
 
     doLast {
-        val scriptContent = """
-            #!/bin/sh
-            target="${'$'}0"
-            while [ -L "${'$'}target" ]; do
-                link=$(readlink "${'$'}target") || exit 1
-                case "${'$'}link" in
-                    /*) target="${'$'}link" ;;
-                    *)  target=$(dirname "${'$'}target")/"${'$'}link" ;;
-                esac
-            done
-            DIR=$(cd "$(dirname "${'$'}target")" && pwd)
-            exec java -jar "${'$'}DIR/${project.name}.jar" "${'$'}@"
-        """.trimIndent()
+        val scriptContent = launcher.asFile.readText().replace("@JAR@", "${project.name}.jar")
 
         scriptFile.parentFile.mkdirs()
         scriptFile.writeText(scriptContent)
