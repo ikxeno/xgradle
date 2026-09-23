@@ -101,6 +101,17 @@ public class E2ETests {
                 "the project buildscript classpath must resolve from installed artifacts");
     }
 
+    @Test
+    @DisplayName("Build with buildSrc and an included build")
+    public void testNestedBuilds(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testNestedBuilds", tempDir);
+
+        assertTrue(result.getOutput().contains("buildSrc classpath: [1,2]"),
+                "buildSrc must resolve its dependencies from installed artifacts");
+        assertEquals(TaskOutcome.SUCCESS, Objects.requireNonNull(result.task(":lib:compileJava")).getOutcome(),
+                "the included build must resolve its dependencies from installed artifacts");
+    }
+
     private BuildResult runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
         File gradleUserHome = new File(tempDir, "gradleUserHome");
         File pluginsDir = new File(gradleUserHome, "lib/plugins");
