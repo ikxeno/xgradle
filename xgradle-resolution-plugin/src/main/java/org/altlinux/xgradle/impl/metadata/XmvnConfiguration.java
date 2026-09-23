@@ -18,14 +18,10 @@ package org.altlinux.xgradle.impl.metadata;
 import org.gradle.api.GradleException;
 
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -35,6 +31,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.altlinux.xgradle.impl.metadata.Xml.child;
+import static org.altlinux.xgradle.impl.metadata.Xml.children;
+import static org.altlinux.xgradle.impl.metadata.Xml.text;
 
 /**
  * Resolver settings read from the XMvn configuration files, in the order and
@@ -81,13 +81,13 @@ public final class XmvnConfiguration {
 
         List<Path> repositories = settings.stream()
                 .flatMap(resolver -> children(child(resolver, "metadataRepositories"), "repository"))
-                .map(repository -> Path.of(repository.getTextContent().trim()))
+                .map(repository -> Path.of(text(repository)))
                 .distinct()
                 .collect(Collectors.toList());
         boolean ignoreDuplicates = settings.stream()
                 .map(resolver -> child(resolver, "ignoreDuplicateMetadata"))
                 .filter(Objects::nonNull)
-                .map(element -> Boolean.parseBoolean(element.getTextContent().trim()))
+                .map(element -> Boolean.parseBoolean(text(element)))
                 .findFirst()
                 .orElse(DEFAULT_IGNORE_DUPLICATES);
 
@@ -154,28 +154,11 @@ public final class XmvnConfiguration {
     }
 
     private static Optional<Element> resolverSettings(Path file) {
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            Element root = factory.newDocumentBuilder().parse(file.toFile()).getDocumentElement();
+        try (InputStream in = Files.newInputStream(file)) {
+            Element root = Xml.parse(in).getDocumentElement();
             return Optional.ofNullable(child(root, "resolverSettings"));
-        } catch (IOException | SAXException | ParserConfigurationException e) {
+        } catch (IOException | SAXException e) {
             throw new GradleException("Cannot read XMvn configuration " + file + ": " + e.getMessage(), e);
         }
-    }
-
-    private static Element child(Element parent, String name) {
-        return children(parent, name).findFirst().orElse(null);
-    }
-
-    private static Stream<Element> children(Element parent, String name) {
-        if (parent == null) {
-            return Stream.empty();
-        }
-        return Stream.iterate(parent.getFirstChild(), Objects::nonNull, Node::getNextSibling)
-                .filter(n -> n.getNodeType() == Node.ELEMENT_NODE && name.equals(n.getLocalName()))
-                .map(Element.class::cast);
     }
 }

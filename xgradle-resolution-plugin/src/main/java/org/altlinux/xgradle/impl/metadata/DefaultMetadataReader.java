@@ -27,13 +27,8 @@ import org.gradle.api.logging.Logger;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -43,10 +38,13 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
+
+import static org.altlinux.xgradle.impl.metadata.Xml.child;
+import static org.altlinux.xgradle.impl.metadata.Xml.children;
+import static org.altlinux.xgradle.impl.metadata.Xml.text;
 
 /**
  * Reads XMvn metadata files, following the XMvn reader: files in a directory
@@ -92,7 +90,7 @@ final class DefaultMetadataReader implements MetadataReader {
 
     private List<XmvnArtifact> readFile(Path file) {
         try (InputStream in = open(file)) {
-            Document document = newDocumentBuilder().parse(in);
+            Document document = Xml.parse(in);
             return children(child(document.getDocumentElement(), "artifacts"), "artifact")
                     .map(artifact -> parseArtifact(artifact, file))
                     .collect(Collectors.toList());
@@ -118,19 +116,6 @@ final class DefaultMetadataReader implements MetadataReader {
         }
     }
 
-    private static DocumentBuilder newDocumentBuilder() {
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setExpandEntityReferences(false);
-            return factory.newDocumentBuilder();
-        } catch (ParserConfigurationException e) {
-            throw new GradleException("Cannot create XML parser for XMvn metadata", e);
-        }
-    }
-
     private static XmvnArtifact parseArtifact(Element e, Path file) {
         String groupId = required(e, "groupId", file);
         String artifactId = required(e, "artifactId", file);
@@ -138,7 +123,7 @@ final class DefaultMetadataReader implements MetadataReader {
         String path = text(e, "path");
 
         List<String> compatVersions = children(child(e, "compatVersions"), "version")
-                .map(DefaultMetadataReader::text)
+                .map(Xml::text)
                 .collect(Collectors.toList());
 
         List<ArtifactKey> aliases = children(child(e, "aliases"), "alias")
@@ -188,7 +173,7 @@ final class DefaultMetadataReader implements MetadataReader {
     private static Map<String, String> properties(Element e) {
         return children(e, null).collect(Collectors.toMap(
                 Element::getLocalName,
-                DefaultMetadataReader::text,
+                Xml::text,
                 (first, second) -> second,
                 LinkedHashMap::new));
     }
@@ -199,32 +184,6 @@ final class DefaultMetadataReader implements MetadataReader {
             throw new InvalidMetadataException("<" + e.getLocalName() + "> without <" + name + ">");
         }
         return value;
-    }
-
-    private static String text(Element e, String name) {
-        Element c = child(e, name);
-        return c == null ? null : text(c);
-    }
-
-    private static String text(Element e) {
-        return e.getTextContent().trim();
-    }
-
-    private static Element child(Element parent, String name) {
-        return children(parent, name).findFirst().orElse(null);
-    }
-
-    /**
-     * Direct child elements with the given local name, or all of them if name is null.
-     */
-    private static Stream<Element> children(Element parent, String name) {
-        if (parent == null) {
-            return Stream.empty();
-        }
-        return Stream.iterate(parent.getFirstChild(), Objects::nonNull, Node::getNextSibling)
-                .filter(n -> n.getNodeType() == Node.ELEMENT_NODE)
-                .filter(n -> name == null || name.equals(n.getLocalName()))
-                .map(Element.class::cast);
     }
 
     private static final class InvalidMetadataException extends RuntimeException {
