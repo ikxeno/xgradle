@@ -34,7 +34,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Generates an SBOM report from snapshots captured during resolution.
@@ -46,30 +45,32 @@ public final class DefaultSbomGenerationService implements SbomGenerationService
 
     private final SbomGenerator sbomGenerator;
     private final SbomComponentCollector sbomComponentCollector;
+    private final Logger logger;
 
     @Inject
     public DefaultSbomGenerationService(
             SbomGenerator sbomGenerator,
-            SbomComponentCollector sbomComponentCollector
+            SbomComponentCollector sbomComponentCollector,
+            Logger logger
     ) {
         this.sbomGenerator = sbomGenerator;
         this.sbomComponentCollector = sbomComponentCollector;
+        this.logger = logger;
     }
 
     @Override
     public void generate(
             Gradle gradle,
             SbomFormat format,
-            Map<String, MavenCoordinate> artifactsSnapshot,
-            Collection<MavenCoordinate> pluginArtifactsSnapshot,
-            Collection<File> resolvedJars,
-            Logger logger
+            Collection<MavenCoordinate> artifacts,
+            Collection<MavenCoordinate> pluginArtifacts,
+            Collection<File> resolvedJars
     ) {
         try {
             Project root = gradle.getRootProject();
             List<SbomComponent> components = sbomComponentCollector.collect(
-                    artifactsSnapshot.values(),
-                    pluginArtifactsSnapshot,
+                    artifacts,
+                    pluginArtifacts,
                     resolvedJars
             );
 

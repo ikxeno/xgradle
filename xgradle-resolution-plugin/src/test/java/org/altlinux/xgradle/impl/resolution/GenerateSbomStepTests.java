@@ -35,7 +35,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -116,7 +115,7 @@ class GenerateSbomStepTests {
                 mock(ResolvedJarsCollector.class)
         );
         step.execute(resolutionContext);
-        verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any(), any());
+        verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any());
         buildEnd.close();
 
         verify(sbomGenerationService).generate(
@@ -129,20 +128,12 @@ class GenerateSbomStepTests {
                         "awesome-gradle-plugin",
                         "2.0.0"
                 )),
-                any(),
-                eq(logger)
+                any()
         );
     }
 
-    private boolean containsDependency(Map<String, MavenCoordinate> artifactsSnapshot) {
-        if (artifactsSnapshot == null) {
-            return false;
-        }
-        MavenCoordinate coordinate = artifactsSnapshot.get("org.example:core-lib");
-        return coordinate != null
-                && "org.example".equals(coordinate.getGroupId())
-                && "core-lib".equals(coordinate.getArtifactId())
-                && "1.2.3".equals(coordinate.getVersion());
+    private boolean containsDependency(Collection<MavenCoordinate> artifactsSnapshot) {
+        return containsCoordinate(artifactsSnapshot, "org.example", "core-lib", "1.2.3");
     }
 
     private boolean containsCoordinate(

@@ -33,9 +33,7 @@ import org.gradle.api.logging.Logger;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -98,8 +96,7 @@ final class GenerateSbomStep implements ResolutionStep {
         }
 
         Gradle gradle = resolutionContext.getGradle();
-        Map<String, MavenCoordinate> artifactsSnapshot =
-                new LinkedHashMap<>(resolutionContext.getSystemArtifacts());
+        List<MavenCoordinate> artifactsSnapshot = List.copyOf(resolutionContext.getSystemArtifacts().values());
         SbomFormat sbomFormat = parsedFormat.get();
         Collection<MavenCoordinate> pluginArtifactsSnapshot =
                 snapshotPluginArtifacts();
@@ -113,8 +110,7 @@ final class GenerateSbomStep implements ResolutionStep {
                         sbomFormat,
                         artifactsSnapshot,
                         pluginArtifactsSnapshot,
-                        jars,
-                        logger
+                        jars
                 ));
     }
 

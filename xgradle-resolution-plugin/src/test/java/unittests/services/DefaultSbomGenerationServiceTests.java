@@ -35,7 +35,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -81,14 +80,13 @@ class DefaultSbomGenerationServiceTests {
                 .thenReturn((List<SbomComponent>) components);
 
         DefaultSbomGenerationService service =
-                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector);
+                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector, logger);
         service.generate(
                 gradle,
                 SbomFormat.CYCLONEDX,
-                Map.of("org.example:core", coordinate),
+                List.of(coordinate),
                 List.of(),
-                List.of(),
-                logger
+                List.of()
         );
 
         verify(sbomGenerator).generate(
@@ -119,15 +117,14 @@ class DefaultSbomGenerationServiceTests {
         );
 
         DefaultSbomGenerationService service =
-                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector);
+                new DefaultSbomGenerationService(sbomGenerator, sbomComponentCollector, logger);
 
         GradleException e = assertThrows(GradleException.class, () -> service.generate(
                 gradle,
                 SbomFormat.SPDX,
-                Map.of(),
                 List.of(),
                 List.of(),
-                logger
+                List.of()
         ));
 
         assertEquals("boom", e.getCause().getMessage());
