@@ -23,6 +23,10 @@ plugins {
 
 val initScriptName = "${project.name}.gradle"
 
+configurations.shadow {
+    exclude(group = "org.slf4j")
+}
+
 dependencies {
     compileOnly(gradleApi())
     implementation(project(":xgradle-sbom-generator"))
