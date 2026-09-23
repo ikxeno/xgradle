@@ -27,6 +27,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -185,7 +186,7 @@ public class E2ETests {
         Path metadata = testLibPath.resolve("maven-metadata").resolve("testlibs.xml");
         Files.writeString(metadata, Files.readString(metadata).replace("@TESTLIBS@", testLibAbsolutePath));
 
-        return GradleRunner.create()
+        return withoutInstalledInitScripts(GradleRunner.create(), tempDir)
                 .withProjectDir(testProjectDir)
                 .withArguments(
                         "--gradle-user-home", gradleUserHome.getAbsolutePath(),
@@ -198,6 +199,34 @@ public class E2ETests {
                         "--offline"
                 )
                 .forwardOutput();
+    }
+
+    /**
+     * Gradle applies every script in its installation's init.d, and on ALT that
+     * directory holds the installed xgradle. The build under test gets an installation
+     * that links everything else, so only the plugin being tested is applied.
+     */
+    private static GradleRunner withoutInstalledInitScripts(GradleRunner runner, File tempDir) throws IOException {
+        String home = System.getProperty("xgradle.test.gradleHome");
+        if (home == null || !Files.isDirectory(Path.of(home, "init.d"))) {
+            return runner;
+        }
+        Path installation = Files.createDirectories(tempDir.toPath().resolve("gradleInstallation"));
+        try (Stream<Path> entries = Files.list(Path.of(home))) {
+            entries.filter(entry -> !entry.getFileName().toString().equals("init.d"))
+                    .forEach(entry -> link(installation.resolve(entry.getFileName()), entry));
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
+        return runner.withGradleInstallation(installation.toFile());
+    }
+
+    private static void link(Path link, Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {

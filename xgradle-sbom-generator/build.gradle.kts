@@ -78,4 +78,6 @@ tasks.test {
         events("passed", "skipped", "failed")
         showStackTraces = true
     }
+
+    gradle.gradleHomeDir?.let { systemProperty("xgradle.test.gradleHome", it.absolutePath) }
 }

@@ -140,6 +140,7 @@ tasks.test {
 
     systemProperty("java.library.dir", System.getProperty("java.library.dir"))
     systemProperty("maven.poms.dir", System.getProperty("maven.poms.dir"))
+    gradle.gradleHomeDir?.let { systemProperty("xgradle.test.gradleHome", it.absolutePath) }
 }
 
 tasks.named("clean") {
