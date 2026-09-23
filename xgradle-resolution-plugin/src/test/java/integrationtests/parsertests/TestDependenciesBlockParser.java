@@ -88,7 +88,7 @@ public class TestDependenciesBlockParser {
         assertTrue(checkDependencyVersion(parsedDeps, "maven-common-artifact-filters", "3.1.1"));
         assertTrue(checkDependencyVersion(parsedDeps, "jansi", "2.4.0"));
 
-        assertEquals(20, parsedDeps.size());
+        assertEquals(21, parsedDeps.size(), "a dependency without a resolvable version is kept");
     }
 
     @Test

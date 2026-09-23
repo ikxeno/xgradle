@@ -50,6 +50,19 @@ import java.util.stream.Stream;
  */
 final class DefaultPomArtifactReader implements PomArtifactReader {
 
+    private static final Map<String, String> TYPE_EXTENSIONS = Map.of(
+            "test-jar", ArtifactKey.DEFAULT_EXTENSION,
+            "maven-plugin", ArtifactKey.DEFAULT_EXTENSION,
+            "ejb", ArtifactKey.DEFAULT_EXTENSION,
+            "ejb-client", ArtifactKey.DEFAULT_EXTENSION,
+            "java-source", ArtifactKey.DEFAULT_EXTENSION,
+            "javadoc", ArtifactKey.DEFAULT_EXTENSION,
+            "bundle", ArtifactKey.DEFAULT_EXTENSION);
+    private static final Map<String, String> TYPE_CLASSIFIERS = Map.of(
+            "test-jar", "tests",
+            "ejb-client", "client",
+            "java-source", "sources",
+            "javadoc", "javadoc");
     private static final Set<MavenScope> RUNTIME_SCOPES = Set.of(MavenScope.COMPILE, MavenScope.RUNTIME);
 
     private final PomParser pomParser;
@@ -133,6 +146,15 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
      * because ALT POMs of jar modules often declare {@code <packaging>pom</packaging>}.
      */
     private Stream<XmvnArtifact> artifacts(Path pom, Path relativePom, Path javaRoot) {
+        try {
+            return readArtifacts(pom, relativePom, javaRoot);
+        } catch (GradleException e) {
+            logger.warn("Skipping unreadable POM {}: {}", pom, e.getMessage());
+            return Stream.empty();
+        }
+    }
+
+    private Stream<XmvnArtifact> readArtifacts(Path pom, Path relativePom, Path javaRoot) {
         MavenCoordinate coordinate = pomParser.parsePom(pom);
         if (coordinate == null || !coordinate.isValid()) {
             logger.warn("Skipping POM without complete coordinates: {}", pom);
@@ -167,10 +189,22 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .build();
     }
 
+    /**
+     * A POM dependency as XMvn records it. The Maven type becomes an extension and
+     * a classifier the way Maven's standard artifact handlers map it, and a version
+     * with an unresolved property counts as missing.
+     */
     private static XmvnDependency toDependency(MavenCoordinate dependency) {
+        String type = dependency.getPackaging() == null ? ArtifactKey.DEFAULT_EXTENSION : dependency.getPackaging();
+        String version = dependency.getVersion();
         return XmvnDependency.builder(dependency.getGroupId(), dependency.getArtifactId())
-                .requestedVersion(dependency.getVersion())
+                .extension(TYPE_EXTENSIONS.getOrDefault(type, type))
+                .classifier(dependency.getClassifier().isEmpty()
+                        ? TYPE_CLASSIFIERS.getOrDefault(type, "")
+                        : dependency.getClassifier())
+                .requestedVersion(version == null || version.contains("${") ? null : version)
                 .optional(dependency.isOptional())
+                .exclusions(dependency.getExclusions())
                 .build();
     }
 }

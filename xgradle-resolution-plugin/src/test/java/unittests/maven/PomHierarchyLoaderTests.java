@@ -133,6 +133,36 @@ class PomHierarchyLoaderTests {
         assertEquals("1", hierarchy.get(0).getVersion());
     }
 
+    @Test
+    @DisplayName("Finds a parent installed under a JPP name next to the child")
+    void findsJppNamedParent(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("JPP.my-pkg-parent.pom"), pom("parent", "1", ""));
+        Files.writeString(tempDir.resolve("JPP.aaa-parent.pom"), "<project><modelVersion>4.0.0</modelVersion>"
+                + "<groupId>elsewhere</groupId><artifactId>parent</artifactId><version>9</version></project>");
+        Path child = tempDir.resolve("JPP.my-pkg-child.pom");
+        Files.writeString(child, pom("child", "1",
+                "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"));
+
+        Injector injector = Guice.createInjector(
+                Modules.override(new MavenModule()).with(new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(logger);
+                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                                .toInstance(mock(MetadataIndex.class));
+                        bind(PomFinder.class).toInstance(pomFinder);
+                    }
+                })
+        );
+
+        List<Model> hierarchy = injector.getInstance(PomHierarchyLoader.class).loadHierarchy(child);
+
+        assertEquals(List.of("g:parent", "g:child"), hierarchy.stream()
+                .map(model -> (model.getGroupId() != null ? model.getGroupId() : model.getParent().getGroupId())
+                        + ":" + model.getArtifactId())
+                .collect(java.util.stream.Collectors.toList()));
+    }
+
     private static String pom(String artifactId, String version, String parent) {
         return "<project><modelVersion>4.0.0</modelVersion>" + parent
                 + "<groupId>g</groupId><artifactId>" + artifactId + "</artifactId>"

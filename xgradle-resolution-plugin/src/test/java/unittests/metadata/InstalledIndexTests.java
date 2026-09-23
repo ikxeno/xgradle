@@ -24,6 +24,7 @@ import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.model.IvyRepository;
+import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
@@ -120,6 +121,54 @@ class InstalledIndexTests {
         assertEquals(java.resolve("biz.aQute.bnd.gradle.jar"), injector.getInstance(MetadataIndex.class)
                 .resolve(ArtifactKey.jar("biz.aQute.bnd", "biz.aQute.bnd.gradle", "SYSTEM"))
                 .orElseThrow().getPath());
+    }
+
+    @Test
+    @DisplayName("keeps versionless, typed and classified POM dependencies with their exclusions")
+    void readsPomDependenciesAsXmvnRecordsThem() throws IOException {
+        Path pomDir = Files.createDirectories(temp.resolve("dep-poms"));
+        Files.writeString(pomDir.resolve("app.pom"), "<project><modelVersion>4.0.0</modelVersion>"
+                + "<groupId>g</groupId><artifactId>app</artifactId><version>1</version><dependencies>"
+                + "<dependency><groupId>g</groupId><artifactId>lib</artifactId></dependency>"
+                + "<dependency><groupId>g</groupId><artifactId>agg</artifactId><version>2</version><type>pom</type></dependency>"
+                + "<dependency><groupId>g</groupId><artifactId>fixtures</artifactId><version>3</version>"
+                + "<type>test-jar</type></dependency>"
+                + "<dependency><groupId>g</groupId><artifactId>web</artifactId><version>4</version>"
+                + "<exclusions><exclusion><groupId>x</groupId><artifactId>y</artifactId></exclusion></exclusions>"
+                + "</dependency>"
+                + "<dependency><groupId>g</groupId><artifactId>junit</artifactId><version>5</version>"
+                + "<scope>test</scope></dependency>"
+                + "</dependencies></project>");
+
+        Injector injector = install(List.of(), true, pomDir, temp.resolve("java"));
+        List<XmvnDependency> dependencies = injector.getInstance(MetadataIndex.class)
+                .resolveModule("g", "app", "SYSTEM").orElseThrow().getDependencies();
+
+        assertEquals(List.of("g:lib:jar::SYSTEM", "g:agg:pom::2", "g:fixtures:jar:tests:3", "g:web:jar::4"),
+                dependencies.stream()
+                        .map(XmvnDependency::toKey)
+                        .map(key -> key.getGroupId() + ":" + key.getArtifactId() + ":" + key.getExtension()
+                                + ":" + key.getClassifier() + ":" + key.getVersion())
+                        .collect(Collectors.toList()));
+        assertEquals(List.of("x:y"), dependencies.get(3).getExclusions());
+    }
+
+    @Test
+    @DisplayName("skips an unreadable POM and keeps one whose parent cannot be read")
+    void skipsUnreadablePoms() throws IOException {
+        Path pomDir = Files.createDirectories(temp.resolve("broken-poms"));
+        Files.writeString(pomDir.resolve("broken.pom"), "<project><artifactId>");
+        Files.writeString(pomDir.resolve("parent.pom"), "<project><modelVersion>");
+        Files.writeString(pomDir.resolve("child.pom"), "<project><modelVersion>4.0.0</modelVersion>"
+                + "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"
+                + "<groupId>g</groupId><artifactId>child</artifactId><version>1</version></project>");
+        Files.writeString(pomDir.resolve("good.pom"), "<project><modelVersion>4.0.0</modelVersion>"
+                + "<groupId>g</groupId><artifactId>good</artifactId><version>1</version></project>");
+
+        MetadataIndex index = install(List.of(), true, pomDir, temp.resolve("java")).getInstance(MetadataIndex.class);
+
+        assertTrue(index.resolveModule("g", "good", "SYSTEM").isPresent());
+        assertTrue(index.resolveModule("g", "child", "SYSTEM").isPresent(), "an unreadable parent only warns");
     }
 
     @Test
