@@ -22,6 +22,7 @@ import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.ProjectResolutionManager;
 import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
@@ -51,6 +52,9 @@ class PluginsDependenciesHandlerTests {
     private ProjectResolutionManager projectResolutionManager;
 
     @Mock
+    private ResolvedJarsCollector resolvedJars;
+
+    @Mock
     private ProjectDependenciesHandler projectHandler;
 
     @Mock
@@ -66,6 +70,7 @@ class PluginsDependenciesHandlerTests {
                         bind(PluginManager.class).toInstance(pluginManager);
                         bind(ScriptClasspathManager.class).toInstance(scriptClasspathManager);
                         bind(ProjectResolutionManager.class).toInstance(projectResolutionManager);
+                        bind(ResolvedJarsCollector.class).toInstance(resolvedJars);
                         bind(ProjectDependenciesHandler.class).toInstance(projectHandler);
                     }
                 })
@@ -77,6 +82,7 @@ class PluginsDependenciesHandlerTests {
         verify(pluginManager).configure(settings);
         verify(scriptClasspathManager).configure(settings);
         verify(projectResolutionManager).configure(settings);
-        verifyNoMoreInteractions(pluginManager, scriptClasspathManager, projectResolutionManager);
+        verify(resolvedJars).watch(settings);
+        verifyNoMoreInteractions(pluginManager, scriptClasspathManager, projectResolutionManager, resolvedJars);
     }
 }

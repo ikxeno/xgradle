@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.resolution.Order;
@@ -53,14 +54,25 @@ final class GenerateSbomStep implements ResolutionStep {
 
     private final SbomGenerationService sbomGenerationService;
     private final PluginProcessor pluginProcessor;
+    private final ResolvedJarsCollector resolvedJars;
 
     @Inject
     GenerateSbomStep(
             SbomGenerationService sbomGenerationService,
-            PluginProcessor pluginProcessor
+            PluginProcessor pluginProcessor,
+            ResolvedJarsCollector resolvedJars
     ) {
         this.sbomGenerationService = sbomGenerationService;
         this.pluginProcessor = pluginProcessor;
+        this.resolvedJars = resolvedJars;
+    }
+
+    /**
+     * Whether an SBOM is requested with {@code generate.sbom}.
+     */
+    static boolean isRequested() {
+        String format = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
+        return format != null && !format.isBlank();
     }
 
     @Override
@@ -70,10 +82,10 @@ final class GenerateSbomStep implements ResolutionStep {
 
     @Override
     public void execute(ResolutionContext resolutionContext) {
-        String configuredFormat = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
-        if (configuredFormat == null || configuredFormat.isBlank()) {
+        if (!isRequested()) {
             return;
         }
+        String configuredFormat = XGradleConfig.getProperty(GENERATE_SBOM_KEY);
 
         Optional<SbomFormat> parsedFormat = SbomFormat.fromProperty(configuredFormat);
         Logger logger = resolutionContext.getGradle().getRootProject().getLogger();
@@ -91,7 +103,7 @@ final class GenerateSbomStep implements ResolutionStep {
         SbomFormat sbomFormat = parsedFormat.get();
         Collection<MavenCoordinate> pluginArtifactsSnapshot =
                 snapshotPluginArtifacts();
-        Set<File> resolvedJars = ResolvedJars.watch(gradle);
+        Set<File> jars = resolvedJars.jars();
 
         gradle.getSharedServices()
                 .registerIfAbsent(BUILD_END_SERVICE, BuildEndAction.class, spec -> { })
@@ -101,7 +113,7 @@ final class GenerateSbomStep implements ResolutionStep {
                         sbomFormat,
                         artifactsSnapshot,
                         pluginArtifactsSnapshot,
-                        resolvedJars,
+                        jars,
                         logger
                 ));
     }

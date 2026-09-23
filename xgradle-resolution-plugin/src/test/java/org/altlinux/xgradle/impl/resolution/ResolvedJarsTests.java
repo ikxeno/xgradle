@@ -15,99 +15,49 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.ResolvableDependencies;
-import org.gradle.api.artifacts.ResolvedArtifact;
-import org.gradle.api.artifacts.ResolvedConfiguration;
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.logging.Logger;
+import org.gradle.testfixtures.ProjectBuilder;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 /**
  * @author Ivan Khanas xeno@altlinux.org
  */
-@ExtendWith(MockitoExtension.class)
 @DisplayName("ResolvedJars")
 class ResolvedJarsTests {
 
-    @Mock
-    private Gradle gradle;
-
-    @Mock
-    private Project rootProject;
-
-    @Mock
-    private Project project;
-
-    @Mock
-    private ConfigurationContainer configurationContainer;
-
-    @Mock
-    private Configuration configuration;
-
-    @Mock
-    private ResolvableDependencies incoming;
-
-    @Mock
-    private ResolvedConfiguration resolvedConfiguration;
-
-    @Mock
-    private ResolvedArtifact jarArtifact;
-
-    @Mock
-    private ResolvedArtifact textArtifact;
-
-
     @Test
-    @DisplayName("Collects only .jar files resolved by any resolvable configuration")
-    void collectsOnlyJarFiles(@TempDir Path tempDir) throws Exception {
-        when(gradle.getRootProject()).thenReturn(rootProject);
-        when(rootProject.getAllprojects()).thenReturn(Set.of(project));
+    @DisplayName("collects the jars of a configuration created after the watch starts, and only jars")
+    void collectsJarsOfLaterConfigurations(@TempDir Path tempDir) throws IOException {
+        Path libs = Files.createDirectories(tempDir.resolve("libs"));
+        Files.writeString(libs.resolve("demo-1.jar"), "jar");
+        Files.writeString(libs.resolve("notes-1.txt"), "txt");
+        Project project = ProjectBuilder.builder().withProjectDir(tempDir.resolve("project").toFile()).build();
+        project.getRepositories().flatDir(repo -> repo.dirs(libs.toFile()));
+        ResolvedJars resolvedJars = new ResolvedJars(mock(Logger.class));
 
-        when(project.getConfigurations()).thenReturn(configurationContainer);
-        when(configurationContainer.stream()).thenReturn(Stream.of(configuration));
-        when(configuration.isCanBeResolved()).thenReturn(true);
-        when(configuration.getIncoming()).thenReturn(incoming);
-        when(configuration.getResolvedConfiguration()).thenReturn(resolvedConfiguration);
+        resolvedJars.watch(project.getConfigurations());
+        Configuration later = project.getConfigurations().create("later");
+        project.getDependencies().add("later", "g:demo:1");
+        project.getDependencies().add("later", Map.of("group", "g", "name", "notes", "version", "1", "ext", "txt"));
+        later.resolve();
 
-        Path jar = Files.createFile(tempDir.resolve("demo.jar"));
-        Path txt = Files.createFile(tempDir.resolve("notes.txt"));
-        when(jarArtifact.getFile()).thenReturn(jar.toFile());
-        when(textArtifact.getFile()).thenReturn(txt.toFile());
-        when(resolvedConfiguration.getResolvedArtifacts()).thenReturn(Set.of(jarArtifact, textArtifact));
-
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Action<ResolvableDependencies> action = invocation.getArgument(0);
-            action.execute(incoming);
-            return null;
-        }).when(incoming).afterResolve(
-                org.mockito.ArgumentMatchers.<Action<? super ResolvableDependencies>>any()
-        );
-
-        Set<File> resolved = ResolvedJars.watch(gradle);
-
-        assertAll(
-                () -> assertTrue(resolved.contains(jar.toFile())),
-                () -> assertFalse(resolved.contains(txt.toFile()))
-        );
+        assertEquals(Set.of("demo-1.jar"),
+                resolvedJars.jars().stream().map(File::getName).collect(Collectors.toSet()));
     }
 }

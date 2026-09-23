@@ -17,6 +17,7 @@ package org.altlinux.xgradle.impl.resolution;
 
 import org.altlinux.xgradle.impl.enums.SbomFormat;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.services.SbomGenerationService;
 import org.gradle.api.provider.Provider;
@@ -111,7 +112,8 @@ class GenerateSbomStepTests {
 
         GenerateSbomStep step = new GenerateSbomStep(
                 sbomGenerationService,
-                pluginProcessor
+                pluginProcessor,
+                mock(ResolvedJarsCollector.class)
         );
         step.execute(resolutionContext);
         verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any(), any());

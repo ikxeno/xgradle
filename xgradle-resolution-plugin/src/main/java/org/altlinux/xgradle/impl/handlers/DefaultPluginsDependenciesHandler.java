@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 
 import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.ProjectResolutionManager;
 import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
@@ -37,26 +38,31 @@ final class DefaultPluginsDependenciesHandler implements PluginsDependenciesHand
     private final PluginManager pluginManager;
     private final ScriptClasspathManager scriptClasspathManager;
     private final ProjectResolutionManager projectResolutionManager;
+    private final ResolvedJarsCollector resolvedJars;
 
     @Inject
     DefaultPluginsDependenciesHandler(
             PluginManager pluginManager,
             ScriptClasspathManager scriptClasspathManager,
-            ProjectResolutionManager projectResolutionManager
+            ProjectResolutionManager projectResolutionManager,
+            ResolvedJarsCollector resolvedJars
     ) {
         this.pluginManager = pluginManager;
         this.scriptClasspathManager = scriptClasspathManager;
         this.projectResolutionManager = projectResolutionManager;
+        this.resolvedJars = resolvedJars;
     }
 
     /**
      * Resolves plugins requested in {@code plugins { }}, the {@code buildscript}
      * classpath of every script and the dependencies of every project from installed
-     * artifacts. Runs before the settings script.
+     * artifacts, and starts collecting resolved jars for the SBOM. Runs before the
+     * settings script.
      */
     public void handle(Settings settings) {
         pluginManager.configure(settings);
         scriptClasspathManager.configure(settings);
         projectResolutionManager.configure(settings);
+        resolvedJars.watch(settings);
     }
 }

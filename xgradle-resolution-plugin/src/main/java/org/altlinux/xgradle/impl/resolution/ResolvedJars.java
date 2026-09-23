@@ -15,47 +15,69 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.gradle.api.artifacts.Configuration;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
+
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.ResolvedArtifact;
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.initialization.Settings;
+import org.gradle.api.logging.Logger;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Jars the build resolves, transitive ones included, for the SBOM.
+ * Adds the jars of each resolvable configuration to a set when the configuration
+ * is resolved, including configurations created after the watch starts.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-final class ResolvedJars {
+@Singleton
+final class ResolvedJars implements ResolvedJarsCollector {
 
-    private ResolvedJars() {
+    private final Set<File> jars = ConcurrentHashMap.newKeySet();
+    private final Logger logger;
+
+    @Inject
+    ResolvedJars(Logger logger) {
+        this.logger = logger;
     }
 
-    /**
-     * Returns a set that receives the jars of each resolvable configuration of every
-     * project when that configuration is resolved.
-     */
-    static Set<File> watch(Gradle gradle) {
-        Set<File> jars = ConcurrentHashMap.newKeySet();
-        gradle.getRootProject().getAllprojects().forEach(project ->
-                project.getConfigurations().stream()
-                        .filter(Configuration::isCanBeResolved)
-                        .forEach(configuration -> configuration.getIncoming().afterResolve(resolvable -> {
-                            try {
-                                configuration.getResolvedConfiguration().getResolvedArtifacts().stream()
-                                        .map(ResolvedArtifact::getFile)
-                                        .filter(file -> file != null && file.isFile() && file.getName().endsWith(".jar"))
-                                        .forEach(jars::add);
-                            } catch (RuntimeException exception) {
-                                project.getLogger().warn(
-                                        "SBOM may be incomplete: cannot collect resolved jars of '{}': {}",
-                                        configuration.getName(),
-                                        exception.getMessage()
-                                );
-                            }
-                        })));
-        return jars;
+    @Override
+    public void watch(Settings settings) {
+        if (!GenerateSbomStep.isRequested()) {
+            return;
+        }
+        watch(settings.getBuildscript().getConfigurations());
+        settings.getGradle().beforeProject(project -> {
+            watch(project.getBuildscript().getConfigurations());
+            watch(project.getConfigurations());
+        });
+    }
+
+    @Override
+    public Set<File> jars() {
+        return Collections.unmodifiableSet(jars);
+    }
+
+    void watch(ConfigurationContainer configurations) {
+        configurations.configureEach(configuration -> configuration.getIncoming().afterResolve(resolvable -> {
+            if (!configuration.isCanBeResolved()) {
+                return;
+            }
+            try {
+                configuration.getResolvedConfiguration().getResolvedArtifacts().stream()
+                        .map(ResolvedArtifact::getFile)
+                        .filter(file -> file != null && file.isFile() && file.getName().endsWith(".jar"))
+                        .forEach(jars::add);
+            } catch (RuntimeException exception) {
+                logger.warn("SBOM may be incomplete: cannot collect resolved jars of '{}': {}",
+                        configuration.getName(), exception.getMessage());
+            }
+        }));
     }
 }

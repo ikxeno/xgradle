@@ -99,6 +99,9 @@ public class E2ETests {
                 "the settings buildscript classpath must resolve from installed artifacts");
         assertTrue(result.getOutput().contains("project classpath: [1,2]"),
                 "the project buildscript classpath must resolve from installed artifacts");
+        assertTrue(Files.readString(new File(tempDir, "testProject/build/reports/xgradle/sbom-cyclonedx.json").toPath())
+                        .contains("gson"),
+                "the SBOM must list the buildscript classpath");
     }
 
     @Test

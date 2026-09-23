@@ -18,6 +18,8 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 
+import org.altlinux.xgradle.interfaces.collectors.ResolvedJarsCollector;
+
 import org.altlinux.xgradle.impl.collectors.DefaultSbomComponentCollector;
 import org.altlinux.xgradle.impl.services.DefaultSbomGenerationService;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
@@ -39,6 +41,7 @@ public final class ResolutionModule extends AbstractModule {
         bind(ResolutionReporter.class).to(DefaultResolutionReporter.class);
         bind(SbomComponentCollector.class).to(DefaultSbomComponentCollector.class);
         bind(SbomGenerationService.class).to(DefaultSbomGenerationService.class);
+        bind(ResolvedJarsCollector.class).to(ResolvedJars.class);
         bindResolutionSteps();
     }
 
