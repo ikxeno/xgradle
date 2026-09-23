@@ -25,6 +25,8 @@ import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
 
+import unittests.Fixtures;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -146,9 +148,8 @@ class MetadataIndexTests {
 
     @Test
     @DisplayName("drops a key two artifacts claim, as XMvn does by default")
-    void dropsDuplicateByDefault(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
-        Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
+    void dropsDuplicateByDefault(@TempDir Path dir) {
+        Fixtures.copy("metadata-index/duplicates", dir);
 
         index = build(List.of(dir), true);
 
@@ -158,10 +159,8 @@ class MetadataIndexTests {
 
     @Test
     @DisplayName("like XMvn, lets a third artifact take a key dropped as a duplicate")
-    void thirdDuplicateTakesDroppedKey(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
-        Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
-        Files.writeString(dir.resolve("c.xml"), metadata("/usr/share/java/c.jar"));
+    void thirdDuplicateTakesDroppedKey(@TempDir Path dir) {
+        Fixtures.copy("metadata-index/three-duplicates", dir);
 
         index = build(List.of(dir), true);
 
@@ -171,9 +170,8 @@ class MetadataIndexTests {
 
     @Test
     @DisplayName("with ignoreDuplicateMetadata=false reads files in name order and the later one wins")
-    void laterFileWinsDuplicate(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
-        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
+    void laterFileWinsDuplicate(@TempDir Path dir) {
+        Fixtures.copy("metadata-index/duplicates", dir);
 
         index = build(List.of(dir), false);
 
@@ -183,12 +181,8 @@ class MetadataIndexTests {
 
     @Test
     @DisplayName("takes the POM as the main artifact of a module whose jar has no file")
-    void jarWithoutPathIsNotInstalled(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("a.xml"), "<metadata><artifacts>"
-                + "<artifact><groupId>g</groupId><artifactId>a</artifactId><version>1</version></artifact>"
-                + "<artifact><groupId>g</groupId><artifactId>a</artifactId><extension>pom</extension>"
-                + "<version>1</version><path>/usr/share/maven-poms/a.pom</path></artifact>"
-                + "</artifacts></metadata>");
+    void jarWithoutPathIsNotInstalled(@TempDir Path dir) {
+        Fixtures.copy("metadata-index/jar-without-path", dir);
 
         index = build(List.of(dir), true);
 
@@ -200,8 +194,7 @@ class MetadataIndexTests {
     void findsArtifactThroughSymlink(@TempDir Path dir) throws IOException {
         Path jar = Files.writeString(dir.resolve("a.jar"), "jar");
         Path link = Files.createSymbolicLink(dir.resolve("a-1.jar"), jar);
-        Path metadataDir = Files.createDirectories(dir.resolve("metadata"));
-        Files.writeString(metadataDir.resolve("a.xml"), metadata(jar.toString()));
+        Path metadataDir = Fixtures.copy("metadata-index/symlinked", dir.resolve("metadata"), dir);
 
         index = build(List.of(metadataDir), true);
 
@@ -219,11 +212,8 @@ class MetadataIndexTests {
 
     @Test
     @DisplayName("skips a broken file with a warning and keeps the others")
-    void skipsBrokenFile(@TempDir Path dir) throws IOException {
-        Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
-        Files.writeString(dir.resolve("broken.xml"), "<metadata><artifacts><artifact>");
-        Files.writeString(dir.resolve("incomplete.xml"),
-                "<metadata><artifacts><artifact><groupId>g</groupId></artifact></artifacts></metadata>");
+    void skipsBrokenFile(@TempDir Path dir) {
+        Fixtures.copy("metadata-index/broken", dir);
 
         index = build(List.of(dir), true);
 
@@ -235,12 +225,5 @@ class MetadataIndexTests {
     private MetadataIndex build(List<Path> locations, boolean ignoreDuplicates) {
         return Installations.injector(Installations.metadataOnly(locations, ignoreDuplicates), logger)
                 .getInstance(MetadataIndex.class);
-    }
-
-    private static String metadata(String path) {
-        return "<metadata xmlns=\"http://fedorahosted.org/xmvn/METADATA/3.2.0\"><artifacts><artifact>"
-                + "<groupId>g</groupId><artifactId>a</artifactId><version>1</version>"
-                + "<path>" + path + "</path>"
-                + "</artifact></artifacts></metadata>";
     }
 }

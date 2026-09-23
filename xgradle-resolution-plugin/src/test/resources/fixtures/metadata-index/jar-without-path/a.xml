@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>a</artifactId>
+      <version>1</version>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>a</artifactId>
+      <extension>pom</extension>
+      <version>1</version>
+      <path>/usr/share/maven-poms/a.pom</path>
+    </artifact>
+  </artifacts>
+</metadata>

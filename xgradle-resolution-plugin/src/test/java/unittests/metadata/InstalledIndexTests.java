@@ -33,6 +33,8 @@ import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
 
+import unittests.Fixtures;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -125,20 +127,8 @@ class InstalledIndexTests {
 
     @Test
     @DisplayName("keeps versionless, typed and classified POM dependencies with their exclusions")
-    void readsPomDependenciesAsXmvnRecordsThem() throws IOException {
-        Path pomDir = Files.createDirectories(temp.resolve("dep-poms"));
-        Files.writeString(pomDir.resolve("app.pom"), "<project><modelVersion>4.0.0</modelVersion>"
-                + "<groupId>g</groupId><artifactId>app</artifactId><version>1</version><dependencies>"
-                + "<dependency><groupId>g</groupId><artifactId>lib</artifactId></dependency>"
-                + "<dependency><groupId>g</groupId><artifactId>agg</artifactId><version>2</version><type>pom</type></dependency>"
-                + "<dependency><groupId>g</groupId><artifactId>fixtures</artifactId><version>3</version>"
-                + "<type>test-jar</type></dependency>"
-                + "<dependency><groupId>g</groupId><artifactId>web</artifactId><version>4</version>"
-                + "<exclusions><exclusion><groupId>x</groupId><artifactId>y</artifactId></exclusion></exclusions>"
-                + "</dependency>"
-                + "<dependency><groupId>g</groupId><artifactId>junit</artifactId><version>5</version>"
-                + "<scope>test</scope></dependency>"
-                + "</dependencies></project>");
+    void readsPomDependenciesAsXmvnRecordsThem() {
+        Path pomDir = Fixtures.copy("installed-index/pom-dependencies", temp.resolve("dep-poms"));
 
         Injector injector = install(List.of(), true, pomDir, temp.resolve("java"));
         List<XmvnDependency> dependencies = injector.getInstance(MetadataIndex.class)
@@ -155,15 +145,8 @@ class InstalledIndexTests {
 
     @Test
     @DisplayName("skips an unreadable POM and keeps one whose parent cannot be read")
-    void skipsUnreadablePoms() throws IOException {
-        Path pomDir = Files.createDirectories(temp.resolve("broken-poms"));
-        Files.writeString(pomDir.resolve("broken.pom"), "<project><artifactId>");
-        Files.writeString(pomDir.resolve("parent.pom"), "<project><modelVersion>");
-        Files.writeString(pomDir.resolve("child.pom"), "<project><modelVersion>4.0.0</modelVersion>"
-                + "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"
-                + "<groupId>g</groupId><artifactId>child</artifactId><version>1</version></project>");
-        Files.writeString(pomDir.resolve("good.pom"), "<project><modelVersion>4.0.0</modelVersion>"
-                + "<groupId>g</groupId><artifactId>good</artifactId><version>1</version></project>");
+    void skipsUnreadablePoms() {
+        Path pomDir = Fixtures.copy("installed-index/unreadable-poms", temp.resolve("broken-poms"));
 
         MetadataIndex index = install(List.of(), true, pomDir, temp.resolve("java")).getInstance(MetadataIndex.class);
 
@@ -173,12 +156,8 @@ class InstalledIndexTests {
 
     @Test
     @DisplayName("keeps the first of two POMs installed with the same coordinates")
-    void keepsFirstOfDuplicatePoms() throws IOException {
-        Path pomDir = Files.createDirectories(temp.resolve("duplicate-poms"));
-        String pom = "<project><modelVersion>4.0.0</modelVersion>"
-                + "<groupId>g</groupId><artifactId>twice</artifactId><version>%s</version></project>";
-        Files.writeString(pomDir.resolve("JPP-twice.pom"), String.format(pom, "1"));
-        Files.writeString(pomDir.resolve("twice.pom"), String.format(pom, "2"));
+    void keepsFirstOfDuplicatePoms() {
+        Path pomDir = Fixtures.copy("installed-index/duplicate-poms", temp.resolve("duplicate-poms"));
 
         MetadataIndex index = install(List.of(), true, pomDir, temp.resolve("java")).getInstance(MetadataIndex.class);
 
@@ -187,12 +166,8 @@ class InstalledIndexTests {
 
     @Test
     @DisplayName("lets XMvn metadata win over a POM for the same module")
-    void metadataWins() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
-        Files.writeString(metadata.resolve("bnd.xml"), "<metadata><artifacts><artifact>"
-                + "<groupId>biz.aQute.bnd</groupId><artifactId>biz.aQute.bnd.gradle</artifactId>"
-                + "<version>9.9</version><path>/usr/share/java/bnd-from-metadata.jar</path>"
-                + "</artifact></artifacts></metadata>");
+    void metadataWins() {
+        Path metadata = Fixtures.copy("installed-index/metadata-wins", temp.resolve("metadata"));
 
         Injector injector = install(List.of(metadata), true, poms, temp.resolve("java"));
         MetadataIndex index = injector.getInstance(MetadataIndex.class);

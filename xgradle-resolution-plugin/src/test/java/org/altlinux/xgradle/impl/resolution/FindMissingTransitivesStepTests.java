@@ -19,6 +19,7 @@ import com.google.inject.Injector;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
+import unittests.Fixtures;
 import unittests.metadata.Installations;
 
 import org.gradle.api.invocation.Gradle;
@@ -27,8 +28,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -44,11 +43,8 @@ class FindMissingTransitivesStepTests {
 
     @Test
     @DisplayName("reports missing dependencies at any depth and ignores optional ones")
-    void reportsMissingTransitives(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("packages.xml"), "<metadata><artifacts>"
-                + artifact("app", dependency("lib", false) + dependency("absent", false) + dependency("extra", true))
-                + artifact("lib", dependency("gone", false))
-                + "</artifacts></metadata>");
+    void reportsMissingTransitives(@TempDir Path metadata) {
+        Fixtures.copy("missing-transitives", metadata);
         Injector injector = Installations.injector(List.of(metadata));
 
         ResolutionContext ctx = new ResolutionContext(mock(Gradle.class));
@@ -56,17 +52,5 @@ class FindMissingTransitivesStepTests {
         injector.getInstance(FindMissingTransitivesStep.class).execute(ctx);
 
         assertEquals(Set.of("g:absent:1 (required by g:app)", "g:gone:1 (required by g:lib)"), ctx.getSkipped());
-    }
-
-    private static String artifact(String artifactId, String dependencies) {
-        return "<artifact><groupId>g</groupId><artifactId>" + artifactId + "</artifactId><version>1</version>"
-                + "<path>/usr/share/java/" + artifactId + ".jar</path>"
-                + "<dependencies>" + dependencies + "</dependencies></artifact>";
-    }
-
-    private static String dependency(String artifactId, boolean optional) {
-        return "<dependency><groupId>g</groupId><artifactId>" + artifactId + "</artifactId>"
-                + "<requestedVersion>1</requestedVersion>"
-                + (optional ? "<optional>true</optional>" : "") + "</dependency>";
     }
 }

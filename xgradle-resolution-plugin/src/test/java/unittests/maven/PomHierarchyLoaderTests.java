@@ -22,6 +22,7 @@ import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
+import unittests.Fixtures;
 import unittests.metadata.Installations;
 import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
@@ -104,19 +105,9 @@ class PomHierarchyLoaderTests {
     @Test
     @DisplayName("Loads the installed compat version of the parent a POM names")
     void loadsCompatParent(@TempDir Path tempDir) throws Exception {
-        Path metadata = Files.createDirectories(tempDir.resolve("metadata"));
-        Files.writeString(tempDir.resolve("parent-2.pom"), pom("parent", "2", ""));
-        Files.writeString(tempDir.resolve("parent-1.pom"), pom("parent", "1", ""));
+        Fixtures.copy("pom-hierarchy/compat-parent", tempDir);
         Path child = tempDir.resolve("child.pom");
-        Files.writeString(child, pom("child", "1",
-                "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"));
-        Files.writeString(metadata.resolve("parent.xml"), "<metadata><artifacts>"
-                + "<artifact><groupId>g</groupId><artifactId>parent</artifactId><extension>pom</extension>"
-                + "<version>2</version><path>" + tempDir.resolve("parent-2.pom") + "</path></artifact>"
-                + "<artifact><groupId>g</groupId><artifactId>parent</artifactId><extension>pom</extension>"
-                + "<version>1</version><path>" + tempDir.resolve("parent-1.pom") + "</path>"
-                + "<compatVersions><version>1</version></compatVersions></artifact>"
-                + "</artifacts></metadata>");
+        Path metadata = Fixtures.copy("pom-hierarchy/compat-parent-metadata", tempDir.resolve("metadata"), tempDir);
 
         Injector injector = Guice.createInjector(
                 new MavenModule(),
@@ -137,12 +128,8 @@ class PomHierarchyLoaderTests {
     @Test
     @DisplayName("Finds a parent installed under a JPP name next to the child")
     void findsJppNamedParent(@TempDir Path tempDir) throws Exception {
-        Files.writeString(tempDir.resolve("JPP.my-pkg-parent.pom"), pom("parent", "1", ""));
-        Files.writeString(tempDir.resolve("JPP.aaa-parent.pom"), "<project><modelVersion>4.0.0</modelVersion>"
-                + "<groupId>elsewhere</groupId><artifactId>parent</artifactId><version>9</version></project>");
+        Fixtures.copy("pom-hierarchy/jpp-parent", tempDir);
         Path child = tempDir.resolve("JPP.my-pkg-child.pom");
-        Files.writeString(child, pom("child", "1",
-                "<parent><groupId>g</groupId><artifactId>parent</artifactId><version>1</version></parent>"));
 
         Injector injector = Guice.createInjector(
                 Modules.override(new MavenModule()).with(new AbstractModule() {
@@ -162,11 +149,5 @@ class PomHierarchyLoaderTests {
                 .map(model -> (model.getGroupId() != null ? model.getGroupId() : model.getParent().getGroupId())
                         + ":" + model.getArtifactId())
                 .collect(Collectors.toList()));
-    }
-
-    private static String pom(String artifactId, String version, String parent) {
-        return "<project><modelVersion>4.0.0</modelVersion>" + parent
-                + "<groupId>g</groupId><artifactId>" + artifactId + "</artifactId>"
-                + "<version>" + version + "</version></project>";
     }
 }

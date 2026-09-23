@@ -17,6 +17,9 @@ package org.altlinux.xgradle.impl.utils.config;
 
 import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
+
+import unittests.Fixtures;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -100,12 +103,7 @@ class SystemDepsExtensionTests {
     @DisplayName("Uses the XMvn metadata repositories that exist")
     void usesExistingXmvnRepositories() throws Exception {
         Path metadata = Files.createDirectories(tempDir.resolve("maven-metadata"));
-        Path xmvnDir = Files.createDirectories(tempDir.resolve("share/xmvn"));
-        Files.writeString(xmvnDir.resolve("configuration.xml"),
-                "<configuration><resolverSettings><metadataRepositories>"
-                        + "<repository>" + metadata + "</repository>"
-                        + "<repository>" + tempDir.resolve("missing") + "</repository>"
-                        + "</metadataRepositories></resolverSettings></configuration>");
+        Fixtures.copy("xmvn-config/system-repositories", tempDir.resolve("share/xmvn"), tempDir);
         XmvnConfiguration xmvn = XmvnConfiguration.load(tempDir.resolve("project"),
                 Map.of("XDG_DATA_DIRS", tempDir.resolve("share").toString(), "XDG_CONFIG_DIRS", "/nonexistent"),
                 tempDir, false);

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>lib</artifactId>
+      <version>4.13.1</version>
+      <path>@DIR@/lib.jar</path>
+      <aliases>
+        <alias>
+          <groupId>g</groupId>
+          <artifactId>lib-dep</artifactId>
+        </alias>
+      </aliases>
+    </artifact>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>rules</artifactId>
+      <version>1.19.0</version>
+      <path>@DIR@/rules.jar</path>
+      <dependencies>
+        <dependency>
+          <groupId>g</groupId>
+          <artifactId>lib-dep</artifactId>
+        </dependency>
+      </dependencies>
+    </artifact>
+  </artifacts>
+</metadata>

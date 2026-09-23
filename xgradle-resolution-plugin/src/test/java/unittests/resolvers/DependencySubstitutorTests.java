@@ -18,10 +18,12 @@ package unittests.resolvers;
 import com.google.inject.Injector;
 
 import org.altlinux.xgradle.impl.model.IvyRepository;
-import unittests.metadata.Installations;
 import org.altlinux.xgradle.impl.resolvers.DefaultDependencySubstitutor;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+
+import unittests.Fixtures;
+import unittests.metadata.Installations;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
@@ -55,13 +57,8 @@ class DependencySubstitutorTests {
     @Test
     @DisplayName("resolves declared, versionless, alias and compat requests to installed revisions")
     void resolvesToInstalledRevisions() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
         Path jars = Files.createDirectories(temp.resolve("java"));
-        Files.writeString(metadata.resolve("packages.xml"), "<metadata><artifacts>"
-                + artifact("lib", "1.5", jars.resolve("lib.jar"),
-                "<aliases><alias><groupId>g</groupId><artifactId>lib-legacy</artifactId></alias></aliases>")
-                + artifact("old", "2.0", jars.resolve("old.jar"), "<compatVersions><version>1.0</version></compatVersions>")
-                + "</artifacts></metadata>");
+        Path metadata = Fixtures.copy("substitutor/installed-revisions", temp.resolve("metadata"), jars);
         Files.writeString(jars.resolve("lib.jar"), "lib");
         Files.writeString(jars.resolve("old.jar"), "old");
 
@@ -87,14 +84,8 @@ class DependencySubstitutorTests {
     @Test
     @DisplayName("a version the build forces is still replaced by the installed one, as XMvn ignores it")
     void overridesForcedVersion() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
         Path jars = Files.createDirectories(temp.resolve("java"));
-        Files.writeString(metadata.resolve("packages.xml"), "<metadata><artifacts>"
-                + artifact("lib", "4.13.1", jars.resolve("lib.jar"),
-                "<aliases><alias><groupId>g</groupId><artifactId>lib-dep</artifactId></alias></aliases>")
-                + artifact("rules", "1.19.0", jars.resolve("rules.jar"),
-                "<dependencies><dependency><groupId>g</groupId><artifactId>lib-dep</artifactId></dependency></dependencies>")
-                + "</artifacts></metadata>");
+        Path metadata = Fixtures.copy("substitutor/forced-version", temp.resolve("metadata"), jars);
         Files.writeString(jars.resolve("lib.jar"), "lib");
         Files.writeString(jars.resolve("rules.jar"), "rules");
 
@@ -131,10 +122,5 @@ class DependencySubstitutorTests {
                 .filter(module -> module != null && module.getGroup().equals("g"))
                 .map(module -> module.getName() + ":" + module.getVersion())
                 .collect(Collectors.toSet());
-    }
-
-    private static String artifact(String artifactId, String version, Path path, String extra) {
-        return "<artifact><groupId>g</groupId><artifactId>" + artifactId + "</artifactId>"
-                + "<version>" + version + "</version><path>" + path + "</path>" + extra + "</artifact>";
     }
 }

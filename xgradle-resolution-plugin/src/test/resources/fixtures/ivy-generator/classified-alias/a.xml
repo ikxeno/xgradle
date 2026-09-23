@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://fedorahosted.org/xmvn/METADATA/3.2.0">
+  <artifacts>
+    <artifact>
+      <groupId>g</groupId>
+      <artifactId>a</artifactId>
+      <classifier>tests</classifier>
+      <version>1</version>
+      <path>@DIR@/a-tests.jar</path>
+      <aliases>
+        <alias>
+          <groupId>old</groupId>
+          <artifactId>a-tests</artifactId>
+        </alias>
+      </aliases>
+    </artifact>
+  </artifacts>
+</metadata>

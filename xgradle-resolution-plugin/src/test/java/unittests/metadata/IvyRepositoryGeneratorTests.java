@@ -20,6 +20,8 @@ import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 
+import unittests.Fixtures;
+
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
@@ -81,19 +83,8 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("Gradle resolves transitive dependencies from the generated descriptors")
     void gradleResolvesTransitives() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
         Path jars = Files.createDirectories(temp.resolve("java"));
-        Files.writeString(metadata.resolve("app.xml"), metadataFile(
-                artifact("org.example", "app", "2.0", jars.resolve("app.jar"),
-                        dependency("org.example", "lib", "1.0", false)
-                                + dependency("org.example", "absent", "1.0", false)
-                                + dependency("org.example", "extra", "1.0", true))));
-        Files.writeString(metadata.resolve("lib.xml"), metadataFile(
-                artifact("org.example", "lib", "1.5", jars.resolve("lib.jar"), "",
-                        "<aliases><alias><groupId>org.example</groupId><artifactId>lib-legacy</artifactId></alias>"
-                                + "<alias><groupId>org.renamed</groupId><artifactId>lib</artifactId></alias></aliases>")));
-        Files.writeString(metadata.resolve("extra.xml"), metadataFile(
-                artifact("org.example", "extra", "1.0", jars.resolve("extra.jar"), "")));
+        Path metadata = Fixtures.copy("ivy-generator/transitives", temp.resolve("metadata"), jars);
         Files.writeString(jars.resolve("app.jar"), "app");
         Files.writeString(jars.resolve("lib.jar"), "lib");
         Files.writeString(jars.resolve("extra.jar"), "extra");
@@ -112,12 +103,8 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("platform() and enforcedPlatform() on a POM-only module resolve to nothing")
     void platformOnPomOnlyModule() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
         Path jars = Files.createDirectories(temp.resolve("java"));
-        Files.writeString(metadata.resolve("bom.xml"), metadataFile(
-                "<artifact><groupId>org.example</groupId><artifactId>bom</artifactId><extension>pom</extension>"
-                        + "<version>7</version><path>" + jars.resolve("bom.pom") + "</path></artifact>"
-                        + artifact("org.example", "lib", "1.5", jars.resolve("lib.jar"), "")));
+        Path metadata = Fixtures.copy("ivy-generator/platform", temp.resolve("metadata"), jars);
         Files.writeString(jars.resolve("lib.jar"), "lib");
         load(List.of(metadata));
         IvyRepository repository = generator.generate(temp.resolve("cache"));
@@ -160,11 +147,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("publishes the jar of a module that also installs other files")
     void publishesJarOverOtherExtensions(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(
-                "<artifact><groupId>g</groupId><artifactId>a</artifactId><version>1</version>"
-                        + "<path>" + temp.resolve("a.jar") + "</path></artifact>"
-                        + "<artifact><groupId>g</groupId><artifactId>a</artifactId><extension>zip</extension>"
-                        + "<version>1</version><path>" + temp.resolve("a.zip") + "</path></artifact>"));
+        Fixtures.copy("ivy-generator/jar-and-zip", metadata, temp);
         load(List.of(metadata));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
@@ -176,14 +159,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("resolves a dependency by its requested version, like XMvn")
     void dependencyUsesRequestedVersion(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("lib.xml"), metadataFile(
-                artifact("g", "lib", "2.0", temp.resolve("lib.jar"), "")
-                        + artifact("g", "lib", "1.0", temp.resolve("lib1.jar"), "",
-                        "<compatVersions><version>1.0</version></compatVersions>")));
-        Files.writeString(metadata.resolve("app.xml"), metadataFile(
-                artifact("g", "app", "1", temp.resolve("app.jar"),
-                        dependency("g", "lib", "1.0", false) + dependency("g", "other-lib", "9", false))
-                        + artifact("g", "other-lib", "3", temp.resolve("other.jar"), "")));
+        Fixtures.copy("ivy-generator/requested-version", metadata, temp);
         load(List.of(metadata));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
@@ -196,11 +172,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("an alias of a classified artifact depends on that artifact, not the main jar")
     void aliasKeepsClassifier(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(
-                "<artifact><groupId>g</groupId><artifactId>a</artifactId><classifier>tests</classifier>"
-                        + "<version>1</version><path>" + temp.resolve("a-tests.jar") + "</path>"
-                        + "<aliases><alias><groupId>old</groupId><artifactId>a-tests</artifactId></alias></aliases>"
-                        + "</artifact>"));
+        Fixtures.copy("ivy-generator/classified-alias", metadata, temp);
         load(List.of(metadata));
 
         String descriptor = Files.readString(generator.generate(temp.resolve("cache")).getRoot()
@@ -212,7 +184,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("reuses the repository for unchanged metadata")
     void reusesRepository(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        Fixtures.copy("ivy-generator/single", metadata, temp);
         load(List.of(metadata));
 
         Path first = generator.generate(temp.resolve("cache")).getRoot();
@@ -226,9 +198,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("writes a new repository when only the duplicate handling changes")
     void fingerprintFollowsContent() throws IOException {
-        Path metadata = Files.createDirectories(temp.resolve("metadata"));
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
-        Files.writeString(metadata.resolve("b.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("b.jar"), "")));
+        Path metadata = Fixtures.copy("ivy-generator/duplicate", temp.resolve("metadata"), temp);
 
         load(List.of(metadata), true);
         Path ignoring = generator.generate(temp.resolve("cache")).getRoot();
@@ -253,7 +223,7 @@ class IvyRepositoryGeneratorTests {
         Files.setLastModifiedTime(stale.resolve(".complete"), weekAgo);
         Files.setLastModifiedTime(deadTmp, weekAgo);
 
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        Fixtures.copy("ivy-generator/single", metadata, temp);
         load(List.of(metadata));
         Path current = generator.generate(cache).getRoot();
 
@@ -265,7 +235,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("replaces a leftover repository directory without the complete marker")
     void replacesIncompleteRepository(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        Fixtures.copy("ivy-generator/single", metadata, temp);
         load(List.of(metadata));
         Path root = generator.generate(temp.resolve("cache")).getRoot();
         Files.delete(root.resolve(".complete"));
@@ -299,7 +269,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("leaves the repository readable to other users")
     void repositoryIsReadableByAll(@TempDir Path metadata) throws IOException {
-        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        Fixtures.copy("ivy-generator/single", metadata, temp);
         load(List.of(metadata));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
@@ -338,28 +308,5 @@ class IvyRepositoryGeneratorTests {
         } catch (IOException e) {
             throw new AssertionError(e);
         }
-    }
-
-    private static String metadataFile(String artifacts) {
-        return "<metadata xmlns=\"http://fedorahosted.org/xmvn/METADATA/3.2.0\"><artifacts>"
-                + artifacts + "</artifacts></metadata>";
-    }
-
-    private static String artifact(String groupId, String artifactId, String version, Path path, String dependencies) {
-        return artifact(groupId, artifactId, version, path, dependencies, "");
-    }
-
-    private static String artifact(String groupId, String artifactId, String version, Path path,
-                                   String dependencies, String extra) {
-        return "<artifact><groupId>" + groupId + "</groupId><artifactId>" + artifactId + "</artifactId>"
-                + "<version>" + version + "</version><path>" + path + "</path>" + extra
-                + (dependencies.isEmpty() ? "" : "<dependencies>" + dependencies + "</dependencies>")
-                + "</artifact>";
-    }
-
-    private static String dependency(String groupId, String artifactId, String version, boolean optional) {
-        return "<dependency><groupId>" + groupId + "</groupId><artifactId>" + artifactId + "</artifactId>"
-                + "<requestedVersion>" + version + "</requestedVersion>"
-                + (optional ? "<optional>true</optional>" : "") + "</dependency>";
     }
 }

@@ -17,6 +17,8 @@ package unittests.metadata;
 
 import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
 
+import unittests.Fixtures;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -60,12 +62,7 @@ class XmvnConfigurationTests {
     @DisplayName("puts project .xmvn settings before system ones and lets them override duplicates")
     void projectConfigurationComesFirst() throws IOException {
         Path project = temp.resolve("project");
-        Path configD = Files.createDirectories(project.resolve(".xmvn/config.d"));
-        Files.writeString(configD.resolve("10-local.xml"),
-                "<configuration xmlns=\"http://fedorahosted.org/xmvn/CONFIG/2.0.0\"><resolverSettings>"
-                        + "<metadataRepositories><repository>/opt/metadata</repository></metadataRepositories>"
-                        + "<ignoreDuplicateMetadata>false</ignoreDuplicateMetadata>"
-                        + "</resolverSettings></configuration>");
+        Fixtures.copy("xmvn-config/project-override", project.resolve(".xmvn/config.d"));
 
         XmvnConfiguration xmvn = XmvnConfiguration.load(project, altEnvironment(), temp.resolve("home"), false);
 
@@ -76,12 +73,8 @@ class XmvnConfigurationTests {
 
     @Test
     @DisplayName("treats empty XDG variables as unset and prefers $HOME to user.home")
-    void emptyVariablesAndHome() throws IOException {
-        Path userConfig = Files.createDirectories(temp.resolve("real-home/.config/xmvn"));
-        Files.writeString(userConfig.resolve("configuration.xml"),
-                "<configuration><resolverSettings><metadataRepositories>"
-                        + "<repository>/home/metadata</repository></metadataRepositories>"
-                        + "</resolverSettings></configuration>");
+    void emptyVariablesAndHome() {
+        Fixtures.copy("xmvn-config/user-config", temp.resolve("real-home/.config/xmvn"));
         Map<String, String> env = Map.of(
                 "HOME", temp.resolve("real-home").toString(),
                 "XDG_CONFIG_HOME", "",
@@ -106,10 +99,7 @@ class XmvnConfigurationTests {
     @DisplayName("resolves a relative metadata repository against the build directory")
     void relativeRepositoryIsFromBuildDirectory() throws IOException {
         Path project = temp.resolve("project");
-        Path configD = Files.createDirectories(project.resolve(".xmvn/config.d"));
-        Files.writeString(configD.resolve("10-local.xml"), "<configuration><resolverSettings>"
-                + "<metadataRepositories><repository>local-metadata</repository></metadataRepositories>"
-                + "</resolverSettings></configuration>");
+        Fixtures.copy("xmvn-config/relative-repository", project.resolve(".xmvn/config.d"));
 
         XmvnConfiguration xmvn = XmvnConfiguration.load(project, altEnvironment(), temp.resolve("home"), false);
 
