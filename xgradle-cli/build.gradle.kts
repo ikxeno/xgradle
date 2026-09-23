@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
 plugins {
     application
     id("org.altlinux.xgradle-publishing-conventions")
@@ -40,40 +36,6 @@ dependencies {
     shadow(libs.plexus.utils)
     shadow(libs.guice)
     shadow(libs.bundles.guice.deps)
-}
-
-val gitCommitId = createCommitIdProvider()
-val buildTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.getDefault()).format(Date())
-
-fun createCommitIdProvider(): Provider<String> {
-    return providers.systemProperty("gitCommitId")
-        .orElse(providers.provider {
-            runGitCommand("rev-parse", "HEAD~0")
-        })
-        .orElse("<Unknown>")
-        .map {it.trim()}
-        .filter { it.isNotBlank() }
-}
-
-private fun runGitCommand(vararg args: String): String? {
-    return try {
-        val process = ProcessBuilder("git", *args)
-            .directory(rootProject.projectDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .start()
-
-        process.waitFor(10, TimeUnit.SECONDS)
-        if (process.exitValue() == 0) {
-            process.inputStream.bufferedReader().use {
-                it.readText().trim()
-            }
-        } else {
-            null
-        }
-    } catch (e: Exception) {
-        null
-    }
 }
 
 apply(from = rootProject.file("version.gradle.kts"))
