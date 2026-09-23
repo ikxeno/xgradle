@@ -15,52 +15,39 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import org.altlinux.xgradle.interfaces.resolution.Order;
-import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
-import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ResolvedArtifact;
+import org.gradle.api.invocation.Gradle;
 
 import java.io.File;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Registers listeners to capture resolved JAR files used by configurations.
- * Implements {@link ResolutionStep}.
+ * Jars the build resolves, transitive ones included, for the SBOM.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-@Singleton
-@Order(1100)
-final class CollectResolvedJarsStep implements ResolutionStep {
+final class ResolvedJars {
 
-
-    @Inject
-    CollectResolvedJarsStep() {
+    private ResolvedJars() {
     }
 
-    @Override
-    public String name() {
-        return "collect-resolved-jars";
-    }
-
-    @Override
-    public void execute(ResolutionContext resolutionContext) {
-        Set<File> resolvedJars = ResolvedArtifactsRegistry.getOrCreate(
-                resolutionContext.getGradle()
-        );
-
-        resolutionContext.getGradle().getRootProject().getAllprojects().forEach(project ->
+    /**
+     * A set that every resolvable configuration of every project adds its resolved
+     * jars to once it is resolved.
+     */
+    static Set<File> watch(Gradle gradle) {
+        Set<File> jars = ConcurrentHashMap.newKeySet();
+        gradle.getRootProject().getAllprojects().forEach(project ->
                 project.getConfigurations().stream()
                         .filter(Configuration::isCanBeResolved)
                         .forEach(configuration -> configuration.getIncoming().afterResolve(resolvable -> {
                             try {
                                 configuration.getResolvedConfiguration().getResolvedArtifacts().stream()
                                         .map(ResolvedArtifact::getFile)
-                                        .filter(file -> file != null && file.isFile() && isJar(file))
-                                        .forEach(resolvedJars::add);
+                                        .filter(file -> file != null && file.isFile() && file.getName().endsWith(".jar"))
+                                        .forEach(jars::add);
                             } catch (RuntimeException exception) {
                                 project.getLogger().warn(
                                         "SBOM may be incomplete: cannot collect resolved jars of '{}': {}",
@@ -68,12 +55,7 @@ final class CollectResolvedJarsStep implements ResolutionStep {
                                         exception.getMessage()
                                 );
                             }
-                        }))
-        );
-    }
-
-    private boolean isJar(File file) {
-        String name = file.getName();
-        return name.endsWith(".jar");
+                        })));
+        return jars;
     }
 }

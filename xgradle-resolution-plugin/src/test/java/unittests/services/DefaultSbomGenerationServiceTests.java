@@ -77,7 +77,7 @@ class DefaultSbomGenerationServiceTests {
         Collection<SbomComponent> components = List.of(
                 SbomComponent.maven("org.example", "core", "1.0.0")
         );
-        when(sbomComponentCollector.collect(eq(root), anyCollection(), anyCollection()))
+        when(sbomComponentCollector.collect(anyCollection(), anyCollection(), anyCollection()))
                 .thenReturn((List<SbomComponent>) components);
 
         DefaultSbomGenerationService service =
@@ -86,6 +86,7 @@ class DefaultSbomGenerationServiceTests {
                 gradle,
                 SbomFormat.CYCLONEDX,
                 Map.of("org.example:core", coordinate),
+                List.of(),
                 List.of(),
                 logger
         );
@@ -107,7 +108,7 @@ class DefaultSbomGenerationServiceTests {
     void failsWhenSbomGenerationFails() {
         Project root = ProjectBuilder.builder().withName("demo-root").build();
         when(gradle.getRootProject()).thenReturn(root);
-        when(sbomComponentCollector.collect(eq(root), anyCollection(), anyCollection()))
+        when(sbomComponentCollector.collect(anyCollection(), anyCollection(), anyCollection()))
                 .thenReturn(List.of());
         doThrow(new RuntimeException("boom")).when(sbomGenerator).generate(
                 any(),
@@ -124,6 +125,7 @@ class DefaultSbomGenerationServiceTests {
                 gradle,
                 SbomFormat.SPDX,
                 Map.of(),
+                List.of(),
                 List.of(),
                 logger
         ));

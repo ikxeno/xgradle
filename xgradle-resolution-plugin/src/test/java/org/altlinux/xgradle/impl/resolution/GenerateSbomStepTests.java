@@ -114,7 +114,7 @@ class GenerateSbomStepTests {
                 pluginProcessor
         );
         step.execute(resolutionContext);
-        verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any());
+        verify(sbomGenerationService, never()).generate(any(), any(), any(), any(), any(), any());
         buildEnd.close();
 
         verify(sbomGenerationService).generate(
@@ -127,6 +127,7 @@ class GenerateSbomStepTests {
                         "awesome-gradle-plugin",
                         "2.0.0"
                 )),
+                any(),
                 eq(logger)
         );
     }

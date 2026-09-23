@@ -29,12 +29,14 @@ import org.altlinux.xgradle.impl.enums.SbomFormat;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Generates an SBOM report after dependency resolution when enabled by configuration.
@@ -89,6 +91,7 @@ final class GenerateSbomStep implements ResolutionStep {
         SbomFormat sbomFormat = parsedFormat.get();
         Collection<MavenCoordinate> pluginArtifactsSnapshot =
                 snapshotPluginArtifacts();
+        Set<File> resolvedJars = ResolvedJars.watch(gradle);
 
         gradle.getSharedServices()
                 .registerIfAbsent(BUILD_END_SERVICE, BuildEndAction.class, spec -> { })
@@ -98,6 +101,7 @@ final class GenerateSbomStep implements ResolutionStep {
                         sbomFormat,
                         artifactsSnapshot,
                         pluginArtifactsSnapshot,
+                        resolvedJars,
                         logger
                 ));
     }

@@ -22,12 +22,9 @@ import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.models.SbomComponent;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataLicense;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
-import org.gradle.api.Project;
-import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,11 +32,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -63,10 +58,7 @@ class DefaultSbomComponentCollectorTests {
     @Test
     @DisplayName("Collects library plugin and resolved jar components")
     void collectsLibraryPluginAndResolvedJarComponents(@TempDir Path tempDir) throws Exception {
-        Project root = ProjectBuilder.builder().withName("root").build();
-        Set<File> resolvedJars = ResolvedArtifactsRegistry.getOrCreate(root);
         Path resolvedJar = Files.createFile(tempDir.resolve("resolved-extra.jar"));
-        resolvedJars.add(resolvedJar.toFile());
 
         Path pomPath = Files.createFile(tempDir.resolve("artifact.pom"));
         when(pomMetadataReader.read(pomPath)).thenReturn(new PomMetadata(
@@ -99,9 +91,9 @@ class DefaultSbomComponentCollectorTests {
 
         DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder);
         List<SbomComponent> components = collector.collect(
-                root,
                 List.of(library, bom),
-                List.of(plugin)
+                List.of(plugin),
+                List.of(resolvedJar.toFile())
         );
 
         assertEquals(3, components.size());
@@ -135,11 +127,9 @@ class DefaultSbomComponentCollectorTests {
     @Test
     @DisplayName("Reports a transitive jar of an installed artifact with its coordinates")
     void reportsInstalledTransitiveJar(@TempDir Path tempDir) throws Exception {
-        Project root = ProjectBuilder.builder().withName("root").build();
         Path installedJar = Files.createFile(tempDir.resolve("failureaccess.jar"));
         Path pomPath = Files.createFile(tempDir.resolve("failureaccess.pom"));
         Path repositoryLink = Files.createSymbolicLink(tempDir.resolve("failureaccess-1.0.3.jar"), installedJar);
-        ResolvedArtifactsRegistry.getOrCreate(root).add(repositoryLink.toFile());
 
         when(index.artifacts()).thenReturn(List.of(
                 XmvnArtifact.builder("com.google.guava", "failureaccess", "1.0.3", tempDir.resolve("guava.xml"))
@@ -151,7 +141,7 @@ class DefaultSbomComponentCollectorTests {
                 null, null, List.of(new PomMetadataLicense("Apache-2.0", null))));
 
         List<SbomComponent> components = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder)
-                .collect(root, List.of(), List.of());
+                .collect(List.of(), List.of(), List.of(repositoryLink.toFile()));
 
         assertEquals(1, components.size());
         assertAll(
@@ -164,8 +154,6 @@ class DefaultSbomComponentCollectorTests {
     @Test
     @DisplayName("Skips ineligible coordinates and handles missing pom metadata")
     void skipsIneligibleCoordinatesAndHandlesMissingPomMetadata() {
-        Project root = ProjectBuilder.builder().withName("root").build();
-
         MavenCoordinate missingGroup = MavenCoordinate.builder()
                 .artifactId("broken")
                 .version("1.0.0")
@@ -181,8 +169,8 @@ class DefaultSbomComponentCollectorTests {
 
         DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder);
         List<SbomComponent> components = collector.collect(
-                root,
                 List.of(missingGroup, noPomPath),
+                null,
                 null
         );
 

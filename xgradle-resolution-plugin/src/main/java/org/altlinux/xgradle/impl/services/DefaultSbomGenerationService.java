@@ -30,6 +30,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -61,14 +62,15 @@ public final class DefaultSbomGenerationService implements SbomGenerationService
             SbomFormat format,
             Map<String, MavenCoordinate> artifactsSnapshot,
             Collection<MavenCoordinate> pluginArtifactsSnapshot,
+            Collection<File> resolvedJars,
             Logger logger
     ) {
         try {
             Project root = gradle.getRootProject();
             List<SbomComponent> components = sbomComponentCollector.collect(
-                    root,
                     artifactsSnapshot.values(),
-                    pluginArtifactsSnapshot
+                    pluginArtifactsSnapshot,
+                    resolvedJars
             );
 
             Path outputPath = resolveOutputPath(root, format);

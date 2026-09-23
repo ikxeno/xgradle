@@ -25,12 +25,9 @@ import org.altlinux.xgradle.impl.models.SbomLicense;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataLicense;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
-
-import org.gradle.api.Project;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -66,16 +62,16 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
 
     @Override
     public List<SbomComponent> collect(
-            Project rootProject,
             Collection<MavenCoordinate> artifacts,
-            Collection<MavenCoordinate> pluginArtifacts
+            Collection<MavenCoordinate> pluginArtifacts,
+            Collection<File> resolvedJars
     ) {
         LinkedHashMap<String, SbomComponent> components = new LinkedHashMap<>();
         Map<Path, PomMetadata> metadataByPomPath = new LinkedHashMap<>();
 
         appendLibraryComponents(artifacts, components, metadataByPomPath);
         appendPluginComponents(pluginArtifacts, components, metadataByPomPath);
-        appendResolvedJarComponents(rootProject, components, metadataByPomPath);
+        appendResolvedJarComponents(resolvedJars, components, metadataByPomPath);
 
         return new ArrayList<>(components.values());
     }
@@ -136,11 +132,10 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
      * reported with its coordinates and POM metadata, any other jar by file name.
      */
     private void appendResolvedJarComponents(
-            Project rootProject,
+            Collection<File> resolvedJars,
             Map<String, SbomComponent> components,
             Map<Path, PomMetadata> metadataByPomPath
     ) {
-        Set<File> resolvedJars = ResolvedArtifactsRegistry.get(rootProject);
         if (resolvedJars == null) {
             return;
         }

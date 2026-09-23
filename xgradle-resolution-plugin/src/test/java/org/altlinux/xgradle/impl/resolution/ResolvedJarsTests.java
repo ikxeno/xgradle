@@ -15,7 +15,6 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import org.altlinux.xgradle.interfaces.resolution.ResolvedArtifactsRegistry;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -24,8 +23,6 @@ import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.plugins.ExtensionContainer;
-import org.gradle.api.plugins.ExtraPropertiesExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,8 +33,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -50,8 +45,8 @@ import static org.mockito.Mockito.*;
  * @author Ivan Khanas xeno@altlinux.org
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CollectResolvedJarsStep")
-class CollectResolvedJarsStepTests {
+@DisplayName("ResolvedJars")
+class ResolvedJarsTests {
 
     @Mock
     private Gradle gradle;
@@ -61,12 +56,6 @@ class CollectResolvedJarsStepTests {
 
     @Mock
     private Project project;
-
-    @Mock
-    private ExtensionContainer extensionContainer;
-
-    @Mock
-    private ExtraPropertiesExtension extraProperties;
 
     @Mock
     private ConfigurationContainer configurationContainer;
@@ -93,8 +82,6 @@ class CollectResolvedJarsStepTests {
         when(gradle.getRootProject()).thenReturn(rootProject);
         when(rootProject.getAllprojects()).thenReturn(Set.of(project));
 
-        wireExtraProperties(rootProject);
-
         when(project.getConfigurations()).thenReturn(configurationContainer);
         when(configurationContainer.stream()).thenReturn(Stream.of(configuration));
         when(configuration.isCanBeResolved()).thenReturn(true);
@@ -116,30 +103,11 @@ class CollectResolvedJarsStepTests {
                 org.mockito.ArgumentMatchers.<Action<? super ResolvableDependencies>>any()
         );
 
-        ResolutionContext context = new ResolutionContext(gradle);
-        CollectResolvedJarsStep step = new CollectResolvedJarsStep();
-        step.execute(context);
+        Set<File> resolved = ResolvedJars.watch(gradle);
 
-        Set<File> resolved = ResolvedArtifactsRegistry.get(rootProject);
         assertAll(
-                () -> assertNotNull(resolved),
                 () -> assertTrue(resolved.contains(jar.toFile())),
                 () -> assertFalse(resolved.contains(txt.toFile()))
         );
-    }
-
-    private void wireExtraProperties(Project project) {
-        Map<String, Object> storage = new HashMap<>();
-
-        when(project.getExtensions()).thenReturn(extensionContainer);
-        when(extensionContainer.getExtraProperties()).thenReturn(extraProperties);
-        when(extraProperties.has(anyString())).thenAnswer(invocation ->
-                storage.containsKey(invocation.getArgument(0)));
-        when(extraProperties.get(anyString())).thenAnswer(invocation ->
-                storage.get(invocation.getArgument(0)));
-        doAnswer(invocation -> {
-            storage.put(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(extraProperties).set(anyString(), any());
     }
 }

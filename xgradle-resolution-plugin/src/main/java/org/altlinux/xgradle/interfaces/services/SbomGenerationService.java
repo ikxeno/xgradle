@@ -20,6 +20,7 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ public interface SbomGenerationService {
             SbomFormat format,
             Map<String, MavenCoordinate> artifactsSnapshot,
             Collection<MavenCoordinate> pluginArtifactsSnapshot,
+            Collection<File> resolvedJars,
             Logger logger
     );
 }
