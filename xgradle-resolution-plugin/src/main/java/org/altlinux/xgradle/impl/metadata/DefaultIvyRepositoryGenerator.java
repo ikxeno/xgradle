@@ -29,14 +29,12 @@ import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -59,7 +57,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     /** Bump when the generated layout or descriptors change, to drop old caches. */
     private static final String FORMAT_VERSION = "2";
-    private static final String CONF = "default";
 
     private final MetadataIndex index;
     private final Logger logger;
@@ -77,14 +74,16 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     }
 
     private IvyRepository generateUncached(Path cacheDirectory) {
-        Collection<Module> modules = modules().values();
+        List<IvyModule> modules = modules();
         try {
             Path root = new RepositoryCache(cacheDirectory, logger).obtain(fingerprint(modules), repo -> {
-                modules.forEach(module -> writeModule(repo, module));
+                for (IvyModule module : modules) {
+                    module.writeTo(repo);
+                }
                 logger.info("Generated system ivy repository with {} modules", modules.size());
             });
             return new IvyRepository(root);
-        } catch (IOException | UncheckedIOException e) {
+        } catch (IOException e) {
             throw new GradleException("Cannot write the system ivy repository to " + cacheDirectory, e);
         }
     }
@@ -94,120 +93,49 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
      * in extension and classifier; entries reached through an alias make an
      * alias module.
      */
-    private Map<String, Module> modules() {
-        Map<String, Module> modules = new TreeMap<>();
-        index.entries().forEach((key, artifact) -> index.revision(key).ifPresent(rev -> {
-            Module module = modules.computeIfAbsent(
-                    key.module() + ":" + rev,
-                    id -> new Module(key.getGroupId(), key.getArtifactId(), rev));
-            module.add(key, artifact);
-        }));
-        modules.values().forEach(Module::resolveAlias);
-        modules.values().forEach(module -> module.descriptor = descriptor(module));
-        return modules;
-    }
-
-    private void writeModule(Path repo, Module module) {
-        Path dir = repo.resolve(module.directory());
-        try {
-            Files.createDirectories(dir);
-            Files.writeString(dir.resolve("ivy.xml"), module.descriptor, StandardCharsets.UTF_8);
-            for (Map.Entry<String, Path> file : module.files.entrySet()) {
-                Files.createSymbolicLink(dir.resolve(file.getKey()), file.getValue());
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    private List<IvyModule> modules() {
+        Map<String, ModuleEntries> grouped = new TreeMap<>();
+        index.entries().forEach((key, artifact) -> index.revision(key).ifPresent(rev -> grouped
+                .computeIfAbsent(key.module() + ":" + rev,
+                        id -> new ModuleEntries(key.getGroupId(), key.getArtifactId(), rev))
+                .add(key, artifact)));
+        return grouped.values().stream()
+                .map(entries -> new IvyModule(
+                        entries.org + "/" + entries.name + "/" + entries.rev,
+                        IvyDescriptor.render(entries.org, entries.name, entries.rev,
+                                entries.publishedExtension(), dependencies(entries)),
+                        entries.files))
+                .collect(Collectors.toList());
     }
 
     /**
-     * The module's {@code ivy.xml}. A module without a jar gets an empty
-     * {@code <publications/>}, because without it ivy expects a jar named after the module.
+     * Dependencies of a module on installed module revisions. An alias module depends
+     * on the aliased module; a real module takes the required dependencies from its
+     * metadata that resolve to an installed artifact.
      */
-    private String descriptor(Module module) {
-        StringBuilder xml = new StringBuilder()
-                .append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-                .append("<ivy-module version=\"2.0\" xmlns:m=\"http://ant.apache.org/ivy/maven\">\n")
-                .append("  <info organisation=\"").append(escape(module.org))
-                .append("\" module=\"").append(escape(module.name))
-                .append("\" revision=\"").append(escape(module.rev))
-                .append("\" status=\"release\"/>\n")
-                .append("  <configurations>\n    <conf name=\"").append(CONF).append("\"/>\n  </configurations>\n");
-
-        Optional<XmvnArtifact> published = module.publishedArtifact();
-        if (published.isPresent()) {
-            String ext = escape(published.get().getExtension());
-            xml.append("  <publications>\n    <artifact name=\"").append(escape(module.name))
-                    .append("\" type=\"").append(ext).append("\" ext=\"").append(ext)
-                    .append("\" conf=\"").append(CONF).append("\"/>\n  </publications>\n");
-        } else {
-            xml.append("  <publications/>\n");
+    private List<IvyDescriptor.Dependency> dependencies(ModuleEntries module) {
+        Optional<XmvnArtifact> aliasOf = module.aliasOf();
+        if (aliasOf.isPresent()) {
+            return List.of(new IvyDescriptor.Dependency(
+                    aliasOf.get().getGroupId(), aliasOf.get().getArtifactId(), module.rev, null));
         }
-
-        xml.append("  <dependencies>\n");
-        dependencies(module).forEach(dep -> xml.append(dependency(dep)));
-        return xml.append("  </dependencies>\n</ivy-module>\n").toString();
-    }
-
-    /**
-     * Dependencies of a module as {@code (dependency, revision)} pairs. An alias module
-     * depends on the aliased module; a real module takes the non-optional dependencies
-     * from its metadata that resolve to an installed artifact.
-     */
-    private Stream<ResolvedDependency> dependencies(Module module) {
-        if (module.aliasOf != null) {
-            return Stream.of(new ResolvedDependency(
-                    module.aliasOf.getGroupId(), module.aliasOf.getArtifactId(), module.rev, null));
-        }
-        return module.declaredDependencies()
+        return module.requiredDependencies()
                 .flatMap(dep -> index.revision(dep.toKey())
-                        .map(rev -> new ResolvedDependency(dep.getGroupId(), dep.getArtifactId(), rev, dep))
-                        .stream());
-    }
-
-    private static String dependency(ResolvedDependency resolved) {
-        StringBuilder xml = new StringBuilder("    <dependency org=\"").append(escape(resolved.org))
-                .append("\" name=\"").append(escape(resolved.name))
-                .append("\" rev=\"").append(escape(resolved.rev))
-                .append("\" conf=\"").append(CONF).append("->").append(CONF).append("\"");
-
-        XmvnDependency dep = resolved.dependency;
-        boolean customArtifact = dep != null && !ArtifactKey.POM_EXTENSION.equals(dep.getExtension())
-                && (!ArtifactKey.DEFAULT_EXTENSION.equals(dep.getExtension()) || !dep.getClassifier().isEmpty());
-        boolean hasExclusions = dep != null && !dep.getExclusions().isEmpty();
-        if (!customArtifact && !hasExclusions) {
-            return xml.append("/>\n").toString();
-        }
-
-        xml.append(">\n");
-        if (customArtifact) {
-            String ext = escape(dep.getExtension());
-            xml.append("      <artifact name=\"").append(escape(resolved.name))
-                    .append("\" type=\"").append(ext).append("\" ext=\"").append(ext).append("\"");
-            if (!dep.getClassifier().isEmpty()) {
-                xml.append(" m:classifier=\"").append(escape(dep.getClassifier())).append("\"");
-            }
-            xml.append("/>\n");
-        }
-        if (hasExclusions) {
-            dep.getExclusions().stream()
-                    .map(exclusion -> exclusion.split(":", 2))
-                    .forEach(ga -> xml.append("      <exclude org=\"").append(escape(ga[0]))
-                            .append("\" module=\"").append(escape(ga[1])).append("\"/>\n"));
-        }
-        return xml.append("    </dependency>\n").toString();
+                        .map(rev -> new IvyDescriptor.Dependency(dep.getGroupId(), dep.getArtifactId(), rev, dep))
+                        .stream())
+                .collect(Collectors.toList());
     }
 
     /**
      * Hash of every descriptor and link the repository would contain. A cached
      * repository is reused only if it would be written with the same files.
      */
-    private static String fingerprint(Collection<Module> modules) {
+    private static String fingerprint(List<IvyModule> modules) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             Stream.concat(
                     Stream.of(FORMAT_VERSION),
-                    modules.stream().flatMap(Module::contentLines))
+                    modules.stream().flatMap(IvyModule::contentLines))
                     .forEach(line -> digest.update((line + "\n").getBytes(StandardCharsets.UTF_8)));
             return toHex(digest.digest()).substring(0, 32);
         } catch (NoSuchAlgorithmException e) {
@@ -221,11 +149,8 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 .collect(Collectors.joining());
     }
 
-    private static String escape(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
-    }
-
-    private static final class Module {
+    /** Index entries of one module revision, collected before the module is rendered. */
+    private static final class ModuleEntries {
 
         private final String org;
         private final String name;
@@ -233,10 +158,9 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         private final Map<String, Path> files = new TreeMap<>();
         private XmvnArtifact main;
         private XmvnArtifact pom;
-        private XmvnArtifact aliasOf;
-        private String descriptor;
+        private XmvnArtifact alias;
 
-        private Module(String org, String name, String rev) {
+        private ModuleEntries(String org, String name, String rev) {
             this.org = org;
             this.name = name;
             this.rev = rev;
@@ -247,10 +171,10 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
          * another extension becomes the main artifact only if the module has no jar.
          */
         private void add(ArtifactKey key, XmvnArtifact artifact) {
-            boolean alias = !key.getGroupId().equals(artifact.getGroupId())
+            boolean isAlias = !key.getGroupId().equals(artifact.getGroupId())
                     || !key.getArtifactId().equals(artifact.getArtifactId());
-            if (alias) {
-                aliasOf = aliasOf == null ? artifact : aliasOf;
+            if (isAlias) {
+                alias = alias == null ? artifact : alias;
                 return;
             }
             if (ArtifactKey.POM_EXTENSION.equals(key.getExtension())) {
@@ -267,47 +191,20 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             }
         }
 
-        private String directory() {
-            return org + "/" + name + "/" + rev;
+        /** The aliased artifact, unless these coordinates also have real artifacts. */
+        private Optional<XmvnArtifact> aliasOf() {
+            return main != null || pom != null ? Optional.empty() : Optional.ofNullable(alias);
         }
 
-        private Stream<String> contentLines() {
-            return Stream.concat(
-                    Stream.of(directory(), descriptor),
-                    files.entrySet().stream().map(file -> file.getKey() + " -> " + file.getValue()));
+        private Optional<String> publishedExtension() {
+            return Optional.ofNullable(main)
+                    .filter(artifact -> artifact.getPath() != null)
+                    .map(XmvnArtifact::getExtension);
         }
 
-        /** Coordinates that also have real artifacts are not treated as an alias. */
-        private void resolveAlias() {
-            if (main != null || pom != null) {
-                aliasOf = null;
-            }
-        }
-
-        private Optional<XmvnArtifact> publishedArtifact() {
-            return Optional.ofNullable(main).filter(artifact -> artifact.getPath() != null);
-        }
-
-        private Stream<XmvnDependency> declaredDependencies() {
+        private Stream<XmvnDependency> requiredDependencies() {
             XmvnArtifact source = main != null ? main : pom;
-            return source == null
-                    ? Stream.empty()
-                    : source.requiredDependencies();
-        }
-    }
-
-    private static final class ResolvedDependency {
-
-        private final String org;
-        private final String name;
-        private final String rev;
-        private final XmvnDependency dependency;
-
-        private ResolvedDependency(String org, String name, String rev, XmvnDependency dependency) {
-            this.org = org;
-            this.name = name;
-            this.rev = rev;
-            this.dependency = dependency;
+            return source == null ? Stream.empty() : source.requiredDependencies();
         }
     }
 }
