@@ -18,7 +18,7 @@ package org.altlinux.xgradle.impl.services;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
@@ -34,11 +34,11 @@ import java.util.*;
 @Singleton
 final class DependencyVersionScanner implements VersionScanner {
 
-    private final PomFinder pomFinder;
+    private final ModuleFinder moduleFinder;
 
     @Inject
-    DependencyVersionScanner(PomFinder pomFinder) {
-        this.pomFinder = pomFinder;
+    DependencyVersionScanner(ModuleFinder moduleFinder) {
+        this.moduleFinder = moduleFinder;
     }
 
     @Override
@@ -54,8 +54,8 @@ final class DependencyVersionScanner implements VersionScanner {
         };
 
         MavenCoordinate found = Arrays.stream(artifactIds)
-                .map(artifactId -> pomFinder.findPomForArtifact(pluginId, artifactId))
-                .filter(Objects::nonNull)
+                .map(artifactId -> moduleFinder.findModule(pluginId, artifactId))
+                .flatMap(Optional::stream)
                 .findFirst()
                 .orElse(null);
         if (found != null) {
@@ -70,8 +70,8 @@ final class DependencyVersionScanner implements VersionScanner {
             };
 
             MavenCoordinate extendedFound = Arrays.stream(extendedArtifactIds)
-                    .map(artifactId -> pomFinder.findPomForArtifact(pluginId, artifactId))
-                    .filter(Objects::nonNull)
+                    .map(artifactId -> moduleFinder.findModule(pluginId, artifactId))
+                    .flatMap(Optional::stream)
                     .findFirst()
                     .orElse(null);
             if (extendedFound != null) {
@@ -83,7 +83,7 @@ final class DependencyVersionScanner implements VersionScanner {
     }
 
     private MavenCoordinate findMainArtifactForGroup(String groupId) {
-        List<MavenCoordinate> candidates = pomFinder.findAllPomsForGroup(groupId);
+        List<MavenCoordinate> candidates = moduleFinder.findModulesOfGroup(groupId);
         return candidates.stream()
                 .filter(coord -> coord.getArtifactId().contains("gradle") ||
                         coord.getArtifactId().contains("plugin"))

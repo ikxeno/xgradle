@@ -21,7 +21,7 @@ import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.services.ServicesModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
@@ -32,6 +32,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Path;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -44,7 +46,7 @@ import static org.mockito.Mockito.*;
 class VersionScannerTests {
 
     @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Mock
     private PomParser pomParser;
@@ -62,13 +64,14 @@ class VersionScannerTests {
                 .pomPath(Path.of("p.pom"))
                 .build();
 
-        when(pomFinder.findPomForArtifact("com.acme.plugin", "com.acme.plugin.gradle.plugin")).thenReturn(coord);
+        when(moduleFinder.findModule("com.acme.plugin", "com.acme.plugin.gradle.plugin"))
+                .thenReturn(Optional.of(coord));
 
         Injector injector = Guice.createInjector(
                 Modules.override(new ServicesModule()).with(new AbstractModule() {
                     @Override
                     protected void configure() {
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                         bind(PomParser.class).toInstance(pomParser);
                         bind(PomMetadataReader.class).toInstance(pomMetadataReader);
                     }

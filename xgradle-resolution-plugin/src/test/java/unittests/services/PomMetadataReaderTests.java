@@ -23,7 +23,7 @@ import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.services.ServicesModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
@@ -55,7 +55,7 @@ class PomMetadataReaderTests {
     private VersionScanner versionScanner;
 
     @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Test
     @DisplayName("Reads project URL SCM URL and licenses")
@@ -102,7 +102,7 @@ class PomMetadataReaderTests {
                         bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
                                 .toInstance(mock(MetadataIndex.class));
                         bind(VersionScanner.class).toInstance(versionScanner);
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
                 })
         );

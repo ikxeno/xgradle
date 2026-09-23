@@ -19,6 +19,7 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Finds installed modules by groupId and artifactId, as XMvn resolves a
@@ -26,26 +27,24 @@ import java.util.List;
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-public interface PomFinder {
+public interface ModuleFinder {
 
     /**
      * The installed module with its version, its packaging ({@code jar}, or
      * {@code pom} for a POM-only module) and the path of its POM if one is installed.
-     *
-     * @return the module, or null if it is not installed
      */
-    default MavenCoordinate findPomForArtifact(String groupId, String artifactId) {
+    default Optional<MavenCoordinate> findModule(String groupId, String artifactId) {
         return findModule(groupId, artifactId, List.of());
     }
 
     /**
-     * Like {@link #findPomForArtifact}, for a dependency declared with the given
+     * Like {@link #findModule(String, String)}, for a dependency declared with the given
      * versions: a compat version matching one of them wins over the system version.
      */
-    MavenCoordinate findModule(String groupId, String artifactId, Collection<String> requestedVersions);
+    Optional<MavenCoordinate> findModule(String groupId, String artifactId, Collection<String> requestedVersions);
 
     /**
      * Every installed module of a group, by artifactId.
      */
-    List<MavenCoordinate> findAllPomsForGroup(String groupId);
+    List<MavenCoordinate> findModulesOfGroup(String groupId);
 }

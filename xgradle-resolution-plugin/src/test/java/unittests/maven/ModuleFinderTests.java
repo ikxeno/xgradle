@@ -24,7 +24,7 @@ import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import unittests.metadata.Installations;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 
 import org.gradle.api.logging.Logger;
 
@@ -42,14 +42,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests {@link PomFinder} against XMvn metadata taken from ALT Sisyphus packages.
+ * Tests {@link ModuleFinder} against XMvn metadata taken from ALT Sisyphus packages.
  *
  * @author Ivan Khanas xeno@altlinux.org
  */
-@DisplayName("PomFinder over XMvn metadata")
-class PomFinderTests {
+@DisplayName("ModuleFinder over XMvn metadata")
+class ModuleFinderTests {
 
-    private PomFinder finder;
+    private ModuleFinder finder;
 
     @BeforeEach
     void setUp() throws URISyntaxException {
@@ -62,13 +62,13 @@ class PomFinderTests {
                         bind(Logger.class).toInstance(mock(Logger.class));
                     }
                 });
-        finder = injector.getInstance(PomFinder.class);
+        finder = injector.getInstance(ModuleFinder.class);
     }
 
     @Test
     @DisplayName("finds an installed jar with its version and POM path")
     void findsJar() {
-        MavenCoordinate guava = finder.findPomForArtifact("com.google.guava", "guava");
+        MavenCoordinate guava = finder.findModule("com.google.guava", "guava").orElseThrow();
 
         assertEquals("33.5.0-jre", guava.getVersion());
         assertEquals("jar", guava.getPackaging());
@@ -78,13 +78,13 @@ class PomFinderTests {
     @Test
     @DisplayName("finds a POM-only module")
     void findsPomOnlyModule() {
-        assertTrue(finder.findPomForArtifact("com.google.guava", "guava-parent").isPomOnly());
+        assertTrue(finder.findModule("com.google.guava", "guava-parent").orElseThrow().isPomOnly());
     }
 
     @Test
     @DisplayName("finds an artifact through its alias")
     void findsAlias() {
-        MavenCoordinate alias = finder.findPomForArtifact("org.hamcrest", "hamcrest-core");
+        MavenCoordinate alias = finder.findModule("org.hamcrest", "hamcrest-core").orElseThrow();
 
         assertEquals("hamcrest-core", alias.getArtifactId());
         assertEquals("3.0", alias.getVersion());
@@ -93,14 +93,14 @@ class PomFinderTests {
     @Test
     @DisplayName("returns null for an artifact that is not installed")
     void returnsNullWhenMissing() {
-        assertNull(finder.findPomForArtifact("org.example", "absent"));
+        assertTrue(finder.findModule("org.example", "absent").isEmpty());
     }
 
     @Test
     @DisplayName("lists the modules of a group sorted by artifactId")
     void listsGroup() {
         assertEquals(List.of("failureaccess", "guava", "guava-parent"),
-                finder.findAllPomsForGroup("com.google.guava").stream()
+                finder.findModulesOfGroup("com.google.guava").stream()
                         .map(MavenCoordinate::getArtifactId)
                         .collect(Collectors.toList()));
     }
@@ -108,10 +108,10 @@ class PomFinderTests {
     @Test
     @DisplayName("finds a module installed only as a compat version when that version is declared")
     void findsCompatModuleForDeclaredVersion() {
-        MavenCoordinate model = finder.findModule("org.apache.maven", "maven-model", java.util.Set.of("2.0.7"));
+        MavenCoordinate model = finder.findModule("org.apache.maven", "maven-model", java.util.Set.of("2.0.7")).orElseThrow();
 
         assertEquals("2.2.1", model.getVersion());
-        assertEquals(null, finder.findPomForArtifact("org.apache.maven", "maven-model"),
+        assertTrue(finder.findModule("org.apache.maven", "maven-model").isEmpty(),
                 "without a declared compat version the system version is looked up, and it is not installed");
     }
 }

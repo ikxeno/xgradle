@@ -17,7 +17,7 @@
 package org.altlinux.xgradle.impl.maven;
 
 import com.google.inject.AbstractModule;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 /**
  * Guice module for Maven bindings.
@@ -29,7 +29,7 @@ public final class MavenModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(PomFinder.class).to(MavenPomFinder.class);
+        bind(ModuleFinder.class).to(IndexModuleFinder.class);
         bind(PomHierarchyLoader.class).to(MavenPomHierarchyLoader.class);
     }
 }

@@ -20,13 +20,12 @@ import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -37,17 +36,18 @@ import java.util.stream.Collectors;
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 @Singleton
-final class MavenPomFinder implements PomFinder {
+final class IndexModuleFinder implements ModuleFinder {
 
     private final MetadataIndex index;
 
     @Inject
-    MavenPomFinder(MetadataIndex index) {
+    IndexModuleFinder(MetadataIndex index) {
         this.index = index;
     }
 
     @Override
-    public MavenCoordinate findModule(String groupId, String artifactId, Collection<String> requestedVersions) {
+    public Optional<MavenCoordinate> findModule(String groupId, String artifactId,
+                                                Collection<String> requestedVersions) {
         return index.resolveModule(groupId, artifactId, requestedVersions)
                 .map(artifact -> MavenCoordinate.builder()
                         .groupId(groupId)
@@ -55,18 +55,17 @@ final class MavenPomFinder implements PomFinder {
                         .version(artifact.getVersion())
                         .packaging(artifact.getExtension())
                         .pomPath(index.pomOf(artifact).orElse(null))
-                        .build())
-                .orElse(null);
+                        .build());
     }
 
     @Override
-    public List<MavenCoordinate> findAllPomsForGroup(String groupId) {
+    public List<MavenCoordinate> findModulesOfGroup(String groupId) {
         return index.entries().keySet().stream()
                 .filter(key -> key.getGroupId().equals(groupId) && key.isSystemVersion())
                 .map(ArtifactKey::getArtifactId)
                 .distinct()
-                .map(artifactId -> findPomForArtifact(groupId, artifactId))
-                .filter(Objects::nonNull)
+                .map(artifactId -> findModule(groupId, artifactId))
+                .flatMap(Optional::stream)
                 .sorted(Comparator.comparing(MavenCoordinate::getArtifactId))
                 .collect(Collectors.toList());
     }

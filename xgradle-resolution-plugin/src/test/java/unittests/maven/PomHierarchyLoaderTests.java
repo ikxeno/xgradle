@@ -24,7 +24,7 @@ import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
 import unittests.metadata.Installations;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
 import org.gradle.api.logging.Logger;
@@ -53,7 +53,7 @@ class PomHierarchyLoaderTests {
     private Logger logger;
 
     @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Test
     @DisplayName("Loads parent-child hierarchy by artifactId.pom")
@@ -87,7 +87,7 @@ class PomHierarchyLoaderTests {
                         bind(Logger.class).toInstance(logger);
                         bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
                                 .toInstance(mock(MetadataIndex.class));
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
                 })
         );
@@ -150,7 +150,7 @@ class PomHierarchyLoaderTests {
                         bind(Logger.class).toInstance(logger);
                         bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
                                 .toInstance(mock(MetadataIndex.class));
-                        bind(PomFinder.class).toInstance(pomFinder);
+                        bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
                 })
         );

@@ -16,7 +16,7 @@
 package unittests.resolvers;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.impl.resolvers.DefaultArtifactResolver;
 import org.gradle.api.logging.Logger;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,7 +40,7 @@ import static org.mockito.Mockito.*;
 class ArtifactResolverTests {
 
     @Mock
-    private PomFinder pomFinder;
+    private ModuleFinder moduleFinder;
 
     @Mock
     private Logger logger;
@@ -47,7 +48,7 @@ class ArtifactResolverTests {
     @Test
     @DisplayName("Looks declared dependencies up in the index and filter drops BOMs")
     void resolvesAndFilters() {
-        DefaultArtifactResolver resolver = new DefaultArtifactResolver(pomFinder);
+        DefaultArtifactResolver resolver = new DefaultArtifactResolver(moduleFinder);
         MavenCoordinate lib = MavenCoordinate.builder()
                 .groupId("g")
                 .artifactId("lib")
@@ -59,8 +60,9 @@ class ArtifactResolverTests {
                 .version("1")
                 .packaging("pom")
                 .build();
-        when(pomFinder.findModule("g", "lib", Set.of("1"))).thenReturn(lib);
-        when(pomFinder.findModule("g", "bom", Set.of())).thenReturn(bom);
+        when(moduleFinder.findModule("g", "lib", Set.of("1"))).thenReturn(Optional.of(lib));
+        when(moduleFinder.findModule("g", "bom", Set.of())).thenReturn(Optional.of(bom));
+        when(moduleFinder.findModule("g", "missing", Set.of())).thenReturn(Optional.empty());
 
         resolver.resolve(Set.of("g:lib", "g:bom", "g:missing"), Map.of("g:lib", Set.of("1")), logger);
         resolver.filter();

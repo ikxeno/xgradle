@@ -17,7 +17,7 @@ package org.altlinux.xgradle.impl.resolvers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
+import org.altlinux.xgradle.interfaces.maven.ModuleFinder;
 import org.altlinux.xgradle.interfaces.resolvers.ArtifactResolver;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.gradle.api.logging.Logger;
@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 /**
  * Resolver for Artifact.
@@ -37,14 +38,14 @@ import java.util.Set;
 @Singleton
 public final class DefaultArtifactResolver implements ArtifactResolver {
 
-    private final PomFinder pomFinder;
+    private final ModuleFinder moduleFinder;
 
     private Map<String, MavenCoordinate> systemArtifacts = Collections.emptyMap();
     private Set<String> notFound = Collections.emptySet();
 
     @Inject
-    public DefaultArtifactResolver(PomFinder pomFinder) {
-        this.pomFinder = pomFinder;
+    public DefaultArtifactResolver(ModuleFinder moduleFinder) {
+        this.moduleFinder = moduleFinder;
     }
 
     /**
@@ -59,14 +60,10 @@ public final class DefaultArtifactResolver implements ArtifactResolver {
         Set<String> missing = new LinkedHashSet<>();
         dependencies.stream().sorted().forEach(key -> {
             String[] ga = key.split(":", 3);
-            MavenCoordinate coordinate = ga.length < 2
-                    ? null
-                    : pomFinder.findModule(ga[0], ga[1], requestedVersions.getOrDefault(key, Set.of()));
-            if (coordinate == null) {
-                missing.add(key);
-            } else {
-                found.put(key, coordinate);
-            }
+            Optional<MavenCoordinate> coordinate = ga.length < 2
+                    ? Optional.empty()
+                    : moduleFinder.findModule(ga[0], ga[1], requestedVersions.getOrDefault(key, Set.of()));
+            coordinate.ifPresentOrElse(module -> found.put(key, module), () -> missing.add(key));
         });
         systemArtifacts = found;
         notFound = missing;
