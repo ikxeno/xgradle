@@ -35,7 +35,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,9 +91,9 @@ class DependencySubstitutorTests {
             invocation.<org.gradle.api.Action<Project>>getArgument(0).execute(project);
             return null;
         }).when(gradle).allprojects(any());
-        Map<String, String> overrides = new HashMap<>();
-        new DefaultDependencySubstitutor(index).configure(
-                gradle, Map.of("g:lib", Set.of("1.0")), overrides);
+        DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
+        substitutor.configure(gradle);
+        Map<String, String> overrides = substitutor.overrides(Map.of("g:lib", Set.of("1.0")));
 
         Set<String> resolved = project.getConfigurations().getByName("deps").getIncoming()
                 .getResolutionResult().getAllComponents().stream()

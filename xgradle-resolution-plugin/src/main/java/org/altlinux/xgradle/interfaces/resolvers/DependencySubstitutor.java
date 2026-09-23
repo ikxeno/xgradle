@@ -29,13 +29,13 @@ import java.util.Set;
 public interface DependencySubstitutor {
 
     /**
-     * Makes every module request in every project resolve to the installed
-     * revision, and records in {@code overrideLogs} which declared versions
-     * were replaced.
+     * Makes every module request in every project resolve to the installed revision.
      */
-    void configure(
-            Gradle gradle,
-            Map<String, Set<String>> requestedVersions,
-            Map<String, String> overrideLogs
-    );
+    void configure(Gradle gradle);
+
+    /**
+     * Declared versions {@link #configure} replaces, as log lines keyed by
+     * {@code "group:name|declared|installed"}.
+     */
+    Map<String, String> overrides(Map<String, Set<String>> requestedVersions);
 }

@@ -23,7 +23,7 @@ import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
 /**
- * Configures dependency substitution based on requested versions, resolved system artifacts, and BOM-managed versions.
+ * Makes requests resolve to installed revisions and records which declared versions change.
  * Implements {@link ResolutionStep}.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
@@ -47,11 +47,7 @@ final class ApplySubstitutionStep implements ResolutionStep {
     @Override
     public void execute(ResolutionContext resolutionContext) {
         resolutionContext.getOverrideLogs().clear();
-
-        substitutor.configure(
-                resolutionContext.getGradle(),
-                resolutionContext.getRequestedVersions(),
-                resolutionContext.getOverrideLogs()
-        );
+        resolutionContext.getOverrideLogs().putAll(substitutor.overrides(resolutionContext.getRequestedVersions()));
+        substitutor.configure(resolutionContext.getGradle());
     }
 }

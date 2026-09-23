@@ -26,6 +26,7 @@ import org.gradle.api.invocation.Gradle;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Handles dependency version substitutions during Gradle resolution.
@@ -45,22 +46,7 @@ public final class DefaultDependencySubstitutor implements DependencySubstitutor
     }
 
     @Override
-    public void configure(
-            Gradle gradle,
-            Map<String, Set<String>> requestedVersions,
-            Map<String, String> overrideLogs
-    ) {
-        requestedVersions.forEach((key, versions) -> {
-            String[] ga = key.split(":", 2);
-            versions.stream()
-                    .filter(Objects::nonNull)
-                    .forEach(version -> index.moduleRevision(ga[0], ga[1], version)
-                            .filter(revision -> !revision.equals(version))
-                            .ifPresent(revision -> overrideLogs.put(
-                                    key + "|" + version + "|" + revision,
-                                    "Override version: " + key + ":" + version + " -> " + revision)));
-        });
-
+    public void configure(Gradle gradle) {
         gradle.allprojects(project -> project.getConfigurations().configureEach(configuration ->
                 configuration.getResolutionStrategy().eachDependency(details -> {
                     String requested = details.getRequested().getVersion();
@@ -71,5 +57,22 @@ public final class DefaultDependencySubstitutor implements DependencySubstitutor
                                 details.because(REASON);
                             });
                 })));
+    }
+
+    @Override
+    public Map<String, String> overrides(Map<String, Set<String>> requestedVersions) {
+        return requestedVersions.entrySet().stream()
+                .flatMap(entry -> {
+                    String[] ga = entry.getKey().split(":", 2);
+                    return entry.getValue().stream()
+                            .filter(Objects::nonNull)
+                            .flatMap(version -> index.moduleRevision(ga[0], ga[1], version)
+                                    .filter(revision -> !revision.equals(version))
+                                    .map(revision -> Map.entry(
+                                            entry.getKey() + "|" + version + "|" + revision,
+                                            "Override version: " + entry.getKey() + ":" + version + " -> " + revision))
+                                    .stream());
+                })
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (first, second) -> first));
     }
 }
