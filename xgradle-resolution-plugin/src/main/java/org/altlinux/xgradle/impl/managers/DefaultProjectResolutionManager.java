@@ -18,12 +18,9 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
-import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.managers.ProjectResolutionManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
-import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
 import org.gradle.api.initialization.Settings;
@@ -40,35 +37,30 @@ import org.gradle.api.initialization.Settings;
 final class DefaultProjectResolutionManager implements ProjectResolutionManager {
 
     private final RepositoryManager repositoryManager;
-    private final IvyRepositoryGenerator repositoryGenerator;
+    private final SystemRepository systemRepository;
     private final DependencySubstitutor substitutor;
-    private final MetadataIndex metadataIndex;
 
     @Inject
     DefaultProjectResolutionManager(
             RepositoryManager repositoryManager,
-            IvyRepositoryGenerator repositoryGenerator,
-            DependencySubstitutor substitutor,
-            MetadataIndex metadataIndex
+            SystemRepository systemRepository,
+            DependencySubstitutor substitutor
     ) {
         this.repositoryManager = repositoryManager;
-        this.repositoryGenerator = repositoryGenerator;
+        this.systemRepository = systemRepository;
         this.substitutor = substitutor;
-        this.metadataIndex = metadataIndex;
     }
 
     @Override
     @SuppressWarnings("UnstableApiUsage")
     public void configure(Settings settings) {
-        if (metadataIndex.artifacts().isEmpty()) {
-            return;
-        }
-        IvyRepository repository = repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(settings.getGradle()));
-        repositoryManager.configureDependenciesRepository(
-                settings.getDependencyResolutionManagement().getRepositories(), repository);
-        settings.getGradle().beforeProject(project -> {
-            repositoryManager.configureProjectRepository(project.getRepositories(), repository);
-            substitutor.configure(project.getConfigurations());
+        systemRepository.forBuild(settings.getGradle()).ifPresent(repository -> {
+            repositoryManager.configureDependenciesRepository(
+                    settings.getDependencyResolutionManagement().getRepositories(), repository);
+            settings.getGradle().beforeProject(project -> {
+                repositoryManager.configureProjectRepository(project.getRepositories(), repository);
+                substitutor.configure(project.getConfigurations());
+            });
         });
     }
 }

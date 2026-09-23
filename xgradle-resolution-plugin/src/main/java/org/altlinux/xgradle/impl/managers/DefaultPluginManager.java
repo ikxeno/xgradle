@@ -18,15 +18,12 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
-import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
 import org.gradle.api.initialization.Settings;
-import org.gradle.api.logging.Logger;
 
 
 /**
@@ -39,32 +36,24 @@ import org.gradle.api.logging.Logger;
 final class DefaultPluginManager  implements PluginManager {
 
     private final RepositoryManager repositoryManager;
-    private final IvyRepositoryGenerator repositoryGenerator;
-    private final MetadataIndex metadataIndex;
+    private final SystemRepository systemRepository;
     private final PluginProcessor pluginProcessor;
-    private final Logger logger;
 
     @Inject
     DefaultPluginManager(
             RepositoryManager repositoryManager,
-            IvyRepositoryGenerator repositoryGenerator,
-            MetadataIndex metadataIndex,
-            PluginProcessor pluginProcessor,
-            Logger logger
+            SystemRepository systemRepository,
+            PluginProcessor pluginProcessor
     ) {
         this.repositoryManager = repositoryManager;
-        this.repositoryGenerator = repositoryGenerator;
-        this.metadataIndex = metadataIndex;
+        this.systemRepository = systemRepository;
         this.pluginProcessor = pluginProcessor;
-        this.logger = logger;
     }
 
     public void configure(Settings settings) {
-        if (metadataIndex.artifacts().isEmpty()) {
-            logger.warn("No installed artifacts found in XMvn metadata; plugins are not resolved from the system");
-            return;
-        }
-        repositoryManager.configurePluginsRepository(settings, repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(settings.getGradle())));
-        pluginProcessor.process(settings);
+        systemRepository.forBuild(settings.getGradle()).ifPresent(repository -> {
+            repositoryManager.configurePluginsRepository(settings, repository);
+            pluginProcessor.process(settings);
+        });
     }
 }

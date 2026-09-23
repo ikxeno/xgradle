@@ -18,12 +18,10 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
-import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
 import org.gradle.api.artifacts.DependencyResolutionListener;
@@ -57,9 +55,8 @@ import java.util.stream.Collectors;
 final class DefaultScriptClasspathManager implements ScriptClasspathManager {
 
     private final RepositoryManager repositoryManager;
-    private final IvyRepositoryGenerator repositoryGenerator;
+    private final SystemRepository systemRepository;
     private final DependencySubstitutor substitutor;
-    private final MetadataIndex metadataIndex;
     private final Logger logger;
     private final Set<ResolvableDependencies> configuredClasspaths =
             Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -67,27 +64,23 @@ final class DefaultScriptClasspathManager implements ScriptClasspathManager {
     @Inject
     DefaultScriptClasspathManager(
             RepositoryManager repositoryManager,
-            IvyRepositoryGenerator repositoryGenerator,
+            SystemRepository systemRepository,
             DependencySubstitutor substitutor,
-            MetadataIndex metadataIndex,
             Logger logger
     ) {
         this.repositoryManager = repositoryManager;
-        this.repositoryGenerator = repositoryGenerator;
+        this.systemRepository = systemRepository;
         this.substitutor = substitutor;
-        this.metadataIndex = metadataIndex;
         this.logger = logger;
     }
 
     @Override
     public void configure(Settings settings) {
-        if (metadataIndex.artifacts().isEmpty()) {
-            return;
-        }
-        IvyRepository repository = repositoryGenerator.generate(SystemDepsExtension.getIvyCacheDir(settings.getGradle()));
-        configure(settings.getBuildscript(), repository);
-        settings.getGradle().beforeProject(project -> configure(project.getBuildscript(), repository));
-        settings.getGradle().addListener(new AppliedScriptClasspathWarning());
+        systemRepository.forBuild(settings.getGradle()).ifPresent(repository -> {
+            configure(settings.getBuildscript(), repository);
+            settings.getGradle().beforeProject(project -> configure(project.getBuildscript(), repository));
+            settings.getGradle().addListener(new AppliedScriptClasspathWarning());
+        });
     }
 
     private void configure(ScriptHandler buildscript, IvyRepository repository) {

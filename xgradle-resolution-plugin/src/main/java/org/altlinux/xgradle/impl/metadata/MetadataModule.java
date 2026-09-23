@@ -25,6 +25,7 @@ import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 
 /**
  * Guice module for XMvn metadata bindings. The indexes are built once, on
@@ -46,6 +47,7 @@ public final class MetadataModule extends AbstractModule {
         bind(MetadataReader.class).to(DefaultMetadataReader.class);
         bind(MetadataIndex.class).toProvider(InstalledIndexProvider.class).in(Singleton.class);
         bind(IvyRepositoryGenerator.class).to(DefaultIvyRepositoryGenerator.class);
+        bind(SystemRepository.class).to(DefaultSystemRepository.class);
         bind(PomArtifactReader.class).to(DefaultPomArtifactReader.class);
     }
 

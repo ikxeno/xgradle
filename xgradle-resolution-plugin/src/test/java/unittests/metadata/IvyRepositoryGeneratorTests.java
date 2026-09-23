@@ -18,9 +18,11 @@ package unittests.metadata;
 
 import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
 
@@ -42,7 +44,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests the ivy repository generated from XMvn metadata, including a real
@@ -253,6 +258,20 @@ class IvyRepositoryGeneratorTests {
         try (java.util.stream.Stream<Path> entries = Files.list(temp.resolve("cache"))) {
             assertEquals(List.of(root), entries.collect(Collectors.toList()), "no temporary directory is left");
         }
+    }
+
+    @Test
+    @DisplayName("gives no system repository when nothing is installed, and warns once")
+    void noRepositoryWithoutArtifacts(@TempDir Path metadata) {
+        Logger logger = mock(Logger.class);
+        SystemRepository systemRepository = Installations
+                .injector(Installations.metadataOnly(List.of(metadata), true), logger)
+                .getInstance(SystemRepository.class);
+        Gradle gradle = mock(Gradle.class);
+
+        assertTrue(systemRepository.forBuild(gradle).isEmpty());
+        assertTrue(systemRepository.forBuild(gradle).isEmpty());
+        verify(logger, times(1)).warn(startsWith("No installed artifacts found"));
     }
 
     private Set<String> resolve(IvyRepository repository, String... notations) {

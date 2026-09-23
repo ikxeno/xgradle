@@ -22,8 +22,7 @@ import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
-import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
@@ -70,8 +69,7 @@ class RepositoryManagerTests {
                 bind(Logger.class).toInstance(mock(Logger.class));
                 bind(PluginProcessor.class).toInstance(mock(PluginProcessor.class));
                 bind(DependencySubstitutor.class).toInstance(mock(DependencySubstitutor.class));
-                bind(IvyRepositoryGenerator.class).toInstance(mock(IvyRepositoryGenerator.class));
-                bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
+                bind(SystemRepository.class).toInstance(mock(SystemRepository.class));
             }
         })).getInstance(RepositoryManager.class);
 

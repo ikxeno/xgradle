@@ -26,12 +26,10 @@ import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.altlinux.xgradle.impl.model.IvyRepository;
-import org.altlinux.xgradle.impl.model.XmvnArtifact;
-import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 import org.gradle.api.invocation.Gradle;
 import org.junit.jupiter.api.BeforeEach;
-import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -54,16 +52,10 @@ class PluginManagerTests {
     private RepositoryManager repoManager;
 
     @Mock
-    private IvyRepositoryGenerator generator;
-
-    @Mock
-    private MetadataIndex index;
+    private SystemRepository systemRepository;
 
     @Mock
     private PluginProcessor pluginProcessor;
-
-    @Mock
-    private Logger logger;
 
     @Mock
     private Settings settings;
@@ -80,11 +72,10 @@ class PluginManagerTests {
                     @Override
                     protected void configure() {
                         bind(RepositoryManager.class).toInstance(repoManager);
-                        bind(IvyRepositoryGenerator.class).toInstance(generator);
-                        bind(MetadataIndex.class).toInstance(index);
+                        bind(SystemRepository.class).toInstance(systemRepository);
                         bind(PluginProcessor.class).toInstance(pluginProcessor);
                         bind(DependencySubstitutor.class).toInstance(mock(DependencySubstitutor.class));
-                        bind(Logger.class).toInstance(logger);
+                        bind(Logger.class).toInstance(mock(Logger.class));
                     }
                 })
         ).getInstance(PluginManager.class);
@@ -94,10 +85,8 @@ class PluginManagerTests {
     @DisplayName("Configures the system repository and processes plugins when artifacts are installed")
     void configuresWhenArtifactsInstalled(@TempDir Path tempDir) {
         IvyRepository repository = new IvyRepository(tempDir);
-        when(index.artifacts()).thenReturn(List.of(mock(XmvnArtifact.class)));
         when(settings.getGradle()).thenReturn(gradle);
-        when(gradle.getGradleUserHomeDir()).thenReturn(tempDir.toFile());
-        when(generator.generate(tempDir.resolve("caches/xgradle/ivy"))).thenReturn(repository);
+        when(systemRepository.forBuild(gradle)).thenReturn(Optional.of(repository));
 
         manager.configure(settings);
 
@@ -106,13 +95,13 @@ class PluginManagerTests {
     }
 
     @Test
-    @DisplayName("Warns and skips when no artifacts are installed")
+    @DisplayName("Skips when no artifacts are installed")
     void skipsWithoutArtifacts() {
-        when(index.artifacts()).thenReturn(List.of());
+        when(settings.getGradle()).thenReturn(gradle);
+        when(systemRepository.forBuild(gradle)).thenReturn(Optional.empty());
 
         manager.configure(settings);
 
-        verify(logger).warn(startsWith("No installed artifacts found"));
-        verifyNoInteractions(repoManager, pluginProcessor, generator);
+        verifyNoInteractions(repoManager, pluginProcessor);
     }
 }
