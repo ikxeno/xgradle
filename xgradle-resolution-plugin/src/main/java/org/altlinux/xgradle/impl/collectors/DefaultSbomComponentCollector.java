@@ -187,15 +187,10 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
     }
 
     private boolean isEligibleCoordinate(MavenCoordinate coordinate) {
-        if (coordinate == null || coordinate.isBom()) {
-            return false;
-        }
-
-        if (coordinate.getGroupId() == null || coordinate.getArtifactId() == null) {
-            return false;
-        }
-
-        return !"pom".equalsIgnoreCase(coordinate.getPackaging());
+        return coordinate != null
+                && !coordinate.isPomOnly()
+                && coordinate.getGroupId() != null
+                && coordinate.getArtifactId() != null;
     }
 
     private String uniqueKey(MavenCoordinate coordinate) {

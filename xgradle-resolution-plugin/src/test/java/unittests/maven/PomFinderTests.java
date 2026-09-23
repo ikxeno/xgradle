@@ -76,9 +76,9 @@ class PomFinderTests {
     }
 
     @Test
-    @DisplayName("finds a POM-only module as a BOM")
+    @DisplayName("finds a POM-only module")
     void findsPomOnlyModule() {
-        assertTrue(finder.findPomForArtifact("com.google.guava", "guava-parent").isBom());
+        assertTrue(finder.findPomForArtifact("com.google.guava", "guava-parent").isPomOnly());
     }
 
     @Test

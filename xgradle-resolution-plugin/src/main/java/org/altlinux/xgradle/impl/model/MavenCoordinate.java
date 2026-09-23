@@ -59,8 +59,11 @@ public final class MavenCoordinate {
                 && notEmpty(version);
     }
 
-    public boolean isBom() {
-        return "pom".equals(packaging);
+    /**
+     * Whether the module has no jar: a parent, a BOM or a Gradle plugin marker.
+     */
+    public boolean isPomOnly() {
+        return ArtifactKey.POM_EXTENSION.equals(packaging);
     }
 
     public String getGroupId() {

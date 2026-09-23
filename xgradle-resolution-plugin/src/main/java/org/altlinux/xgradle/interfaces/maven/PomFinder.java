@@ -20,26 +20,23 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import java.util.List;
 
 /**
- * Locates a POM that corresponds to a Maven artifact.
- * A finder only resolves which POM file should be used.
+ * Finds installed modules by groupId and artifactId, as XMvn resolves a
+ * request for the system version.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 public interface PomFinder {
 
     /**
-     * Finds a POM that matches the given Maven coordinates.
+     * The installed module with its version, its packaging ({@code jar}, or
+     * {@code pom} for a POM-only module) and the path of its POM if one is installed.
      *
-     * @param groupId artifact groupId
-     * @param artifactId artifactId
-     *
-     * @return resolved coordinates (with pomPath set) or null if not found
+     * @return the module, or null if it is not installed
      */
     MavenCoordinate findPomForArtifact(String groupId, String artifactId);
-/**
-  * Finds all poms for group.
 
- */
-
+    /**
+     * Every installed module of a group, by artifactId.
+     */
     List<MavenCoordinate> findAllPomsForGroup(String groupId);
 }

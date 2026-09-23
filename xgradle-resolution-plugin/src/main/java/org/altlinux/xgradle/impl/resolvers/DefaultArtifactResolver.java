@@ -71,7 +71,7 @@ public final class DefaultArtifactResolver implements ArtifactResolver {
 
     @Override
     public void filter() {
-        systemArtifacts.entrySet().removeIf(e -> e.getValue().isBom());
+        systemArtifacts.entrySet().removeIf(e -> e.getValue().isPomOnly());
     }
 
     @Override
