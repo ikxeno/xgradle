@@ -36,6 +36,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -108,7 +109,7 @@ class ModuleFinderTests {
     @Test
     @DisplayName("finds a module installed only as a compat version when that version is declared")
     void findsCompatModuleForDeclaredVersion() {
-        MavenCoordinate model = finder.findModule("org.apache.maven", "maven-model", java.util.Set.of("2.0.7")).orElseThrow();
+        MavenCoordinate model = finder.findModule("org.apache.maven", "maven-model", Set.of("2.0.7")).orElseThrow();
 
         assertEquals("2.2.1", model.getVersion());
         assertTrue(finder.findModule("org.apache.maven", "maven-model").isEmpty(),

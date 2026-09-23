@@ -39,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -160,7 +161,7 @@ class PomHierarchyLoaderTests {
         assertEquals(List.of("g:parent", "g:child"), hierarchy.stream()
                 .map(model -> (model.getGroupId() != null ? model.getGroupId() : model.getParent().getGroupId())
                         + ":" + model.getArtifactId())
-                .collect(java.util.stream.Collectors.toList()));
+                .collect(Collectors.toList()));
     }
 
     private static String pom(String artifactId, String version, String parent) {

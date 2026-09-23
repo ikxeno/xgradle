@@ -23,6 +23,7 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.processors.ProcessorsModule;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
+import org.gradle.api.Action;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.gradle.plugin.management.PluginManagementSpec;
@@ -95,7 +96,7 @@ class PluginProcessorTests {
 
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            org.gradle.api.Action<PluginResolveDetails> action = invocation.getArgument(0);
+            Action<PluginResolveDetails> action = invocation.getArgument(0);
             action.execute(details);
             return null;
         }).when(strategy).eachPlugin(any());

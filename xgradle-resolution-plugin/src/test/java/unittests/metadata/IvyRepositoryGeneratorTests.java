@@ -22,6 +22,7 @@ import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
@@ -36,14 +37,19 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -251,7 +257,7 @@ class IvyRepositoryGeneratorTests {
         load(List.of(metadata));
         Path current = generator.generate(cache).getRoot();
 
-        try (java.util.stream.Stream<Path> entries = Files.list(cache)) {
+        try (Stream<Path> entries = Files.list(cache)) {
             assertEquals(Set.of(current, recent), entries.collect(Collectors.toSet()));
         }
     }
@@ -271,7 +277,7 @@ class IvyRepositoryGeneratorTests {
         assertEquals(root, regenerated);
         assertTrue(Files.isRegularFile(regenerated.resolve(".complete")));
         assertFalse(Files.exists(regenerated.resolve("junk")));
-        try (java.util.stream.Stream<Path> entries = Files.list(temp.resolve("cache"))) {
+        try (Stream<Path> entries = Files.list(temp.resolve("cache"))) {
             assertEquals(List.of(root), entries.collect(Collectors.toList()), "no temporary directory is left");
         }
     }
@@ -298,19 +304,18 @@ class IvyRepositoryGeneratorTests {
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
 
-        org.junit.jupiter.api.Assumptions.assumeTrue(
-                Files.getFileAttributeView(root, java.nio.file.attribute.PosixFileAttributeView.class) != null);
+        assumeTrue(Files.getFileAttributeView(root, PosixFileAttributeView.class) != null);
         assertEquals("rwxr-xr-x",
-                java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(root)));
+                PosixFilePermissions.toString(Files.getPosixFilePermissions(root)));
     }
 
     private Set<String> resolve(IvyRepository repository, String... notations) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         addRepository(project, repository);
         Configuration configuration = project.getConfigurations().detachedConfiguration(
-                java.util.Arrays.stream(notations)
+                Arrays.stream(notations)
                         .map(project.getDependencies()::create)
-                        .toArray(org.gradle.api.artifacts.Dependency[]::new));
+                        .toArray(Dependency[]::new));
         return configuration.resolve().stream()
                 .map(file -> resolveLink(file).getName())
                 .collect(Collectors.toSet());
