@@ -20,9 +20,12 @@ set** (prepared by packaging) rather than downloading from the network.
 ## What it does
 
 ### 1) System dependency resolution (projects)
-- Puts an ivy repository generated from XMvn metadata first in every project's repositories
-  (see *How it works*); Gradle resolves transitive dependencies from its descriptors.
+- Puts an ivy repository generated from XMvn metadata (see *How it works*) first in the settings
+  `dependencyResolutionManagement` repositories and in the repositories of every project that
+  declares its own; Gradle resolves transitive dependencies from its descriptors.
 - Resolves every requested version to the installed one, honouring aliases and compat versions.
+- Both are set up before any script runs, so configurations resolved while a script is evaluated
+  and builds with `repositoriesMode = FAIL_ON_PROJECT_REPOS` work too.
 
 ### 2) Local Gradle plugin resolution (Settings `pluginManagement`)
 - Puts the same repository first in `pluginManagement.repositories`, so `plugins { }` requests

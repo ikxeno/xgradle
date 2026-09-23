@@ -23,31 +23,31 @@ import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
 /**
- * Makes requests resolve to installed revisions and records which declared versions change.
+ * Records which declared versions resolve to a different installed revision, for
+ * the report. The substitution itself is installed before any script runs.
  * Implements {@link ResolutionStep}.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 @Singleton
 @Order(1000)
-final class ApplySubstitutionStep implements ResolutionStep {
+final class RecordOverridesStep implements ResolutionStep {
 
     private final DependencySubstitutor substitutor;
 
     @Inject
-    ApplySubstitutionStep(DependencySubstitutor substitutor) {
+    RecordOverridesStep(DependencySubstitutor substitutor) {
         this.substitutor = substitutor;
     }
 
     @Override
     public String name() {
-        return "apply-substitution";
+        return "record-overrides";
     }
 
     @Override
     public void execute(ResolutionContext resolutionContext) {
         resolutionContext.getOverrideLogs().clear();
         resolutionContext.getOverrideLogs().putAll(substitutor.overrides(resolutionContext.getRequestedVersions()));
-        resolutionContext.getGradle().allprojects(project -> substitutor.configure(project.getConfigurations()));
     }
 }

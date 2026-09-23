@@ -17,6 +17,7 @@ package org.altlinux.xgradle.impl.managers;
 
 import com.google.inject.AbstractModule;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
+import org.altlinux.xgradle.interfaces.managers.ProjectResolutionManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
 /**
@@ -32,5 +33,6 @@ public final class ManagersModule extends AbstractModule {
         bind(RepositoryManager.class).to(DefaultRepositoryManager.class);
         bind(PluginManager.class).to(DefaultPluginManager.class);
         bind(ScriptClasspathManager.class).to(DefaultScriptClasspathManager.class);
+        bind(ProjectResolutionManager.class).to(DefaultProjectResolutionManager.class);
     }
 }

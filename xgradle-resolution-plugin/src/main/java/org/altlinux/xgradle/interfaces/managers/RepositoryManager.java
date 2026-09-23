@@ -41,4 +41,10 @@ public interface RepositoryManager {
  */
 
     void configureDependenciesRepository(RepositoryHandler repositories, IvyRepository repository);
+
+    /**
+     * Puts the repository first among a project's repositories as soon as the project
+     * has any. A project without repositories keeps using the settings repositories.
+     */
+    void configureProjectRepository(RepositoryHandler repositories, IvyRepository repository);
 }

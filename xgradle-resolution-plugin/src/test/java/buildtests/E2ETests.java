@@ -115,6 +115,21 @@ public class E2ETests {
     }
 
     @Test
+    @DisplayName("Resolves a configuration while the build script runs")
+    public void testEarlyResolution(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testEarlyResolution", tempDir);
+
+        assertTrue(result.getOutput().contains("configuration-time classpath: [commons-io-2.21.0.jar]"),
+                "a configuration resolved during configuration must use the installed version");
+    }
+
+    @Test
+    @DisplayName("Build whose settings forbid project repositories")
+    public void testSettingsRepositories(@TempDir File tempDir) throws IOException {
+        runAndVerifyBuild("../buildExamples/testSettingsRepositories", tempDir);
+    }
+
+    @Test
     @DisplayName("Warns that an applied script's buildscript classpath is not supported")
     public void testAppliedScriptClasspath(@TempDir File tempDir) throws IOException {
         BuildResult result = runner("../buildExamples/testAppliedScriptClasspath", tempDir).buildAndFail();

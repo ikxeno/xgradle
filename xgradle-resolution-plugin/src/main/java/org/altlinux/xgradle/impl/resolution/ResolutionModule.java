@@ -46,11 +46,10 @@ public final class ResolutionModule extends AbstractModule {
         Multibinder<ResolutionStep> steps =
                 Multibinder.newSetBinder(binder(), ResolutionStep.class);
 
-        steps.addBinding().to(ConfigureSystemRepositoryStep.class);
         steps.addBinding().to(CollectDeclaredDependenciesStep.class);
         steps.addBinding().to(ResolveSystemArtifactsStep.class);
         steps.addBinding().to(FindMissingTransitivesStep.class);
-        steps.addBinding().to(ApplySubstitutionStep.class);
+        steps.addBinding().to(RecordOverridesStep.class);
         steps.addBinding().to(GenerateSbomStep.class);
     }
 }

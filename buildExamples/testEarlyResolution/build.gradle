@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'commons-io:commons-io:2.16.0'
+}
+
+println "configuration-time classpath: " + configurations.compileClasspath.files.collect { it.name }.sort()

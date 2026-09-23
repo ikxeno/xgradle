@@ -23,6 +23,7 @@ import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
+import org.altlinux.xgradle.interfaces.managers.ProjectResolutionManager;
 import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
 import org.gradle.api.initialization.Settings;
 import org.junit.jupiter.api.DisplayName;
@@ -47,13 +48,16 @@ class PluginsDependenciesHandlerTests {
     private ScriptClasspathManager scriptClasspathManager;
 
     @Mock
+    private ProjectResolutionManager projectResolutionManager;
+
+    @Mock
     private ProjectDependenciesHandler projectHandler;
 
     @Mock
     private Settings settings;
 
     @Test
-    @DisplayName("Configures plugins and the buildscript classpath")
+    @DisplayName("Configures plugins, the buildscript classpath and project resolution")
     void delegatesToPluginManager() {
         Injector injector = Guice.createInjector(
                 Modules.override(new HandlersModule()).with(new AbstractModule() {
@@ -61,6 +65,7 @@ class PluginsDependenciesHandlerTests {
                     protected void configure() {
                         bind(PluginManager.class).toInstance(pluginManager);
                         bind(ScriptClasspathManager.class).toInstance(scriptClasspathManager);
+                        bind(ProjectResolutionManager.class).toInstance(projectResolutionManager);
                         bind(ProjectDependenciesHandler.class).toInstance(projectHandler);
                     }
                 })
@@ -71,6 +76,7 @@ class PluginsDependenciesHandlerTests {
 
         verify(pluginManager).configure(settings);
         verify(scriptClasspathManager).configure(settings);
-        verifyNoMoreInteractions(pluginManager, scriptClasspathManager);
+        verify(projectResolutionManager).configure(settings);
+        verifyNoMoreInteractions(pluginManager, scriptClasspathManager, projectResolutionManager);
     }
 }

@@ -104,6 +104,21 @@ class RepositoryManagerTests {
         assertEquals(List.of("SystemPluginsRepo", "MavenRepo"), names());
     }
 
+    @Test
+    @DisplayName("configureProjectRepository adds the repository first only once the project has repositories")
+    void projectRepositoryFollowsProjectRepositories() {
+        RepositoryHandler empty = ProjectBuilder.builder().withProjectDir(temp.resolve("empty").toFile()).build()
+                .getRepositories();
+
+        manager.configureProjectRepository(empty, repository);
+        assertTrue(empty.isEmpty(), "a project without repositories keeps the settings repositories");
+
+        empty.mavenCentral();
+        empty.google();
+        assertEquals(List.of("SystemDepsRepo", "MavenRepo", "Google"),
+                empty.stream().map(ArtifactRepository::getName).collect(Collectors.toList()));
+    }
+
     private List<String> names() {
         return repositories.stream().map(ArtifactRepository::getName).collect(Collectors.toList());
     }

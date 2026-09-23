@@ -54,6 +54,18 @@ final class DefaultRepositoryManager implements RepositoryManager {
         addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
     }
 
+    @Override
+    public void configureProjectRepository(RepositoryHandler repositories, IvyRepository repository) {
+        if (!repositories.isEmpty()) {
+            addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
+        }
+        repositories.whenObjectAdded(added -> {
+            if (repositories.findByName(DEPENDENCIES_REPO_NAME) == null) {
+                addFirst(repositories, DEPENDENCIES_REPO_NAME, repository);
+            }
+        });
+    }
+
     /**
      * Adds the repository and moves it to the front, because the repository DSL can
      * only append. System artifacts must win over every other repository.
