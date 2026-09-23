@@ -110,14 +110,19 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
 
     /**
      * Dependencies of a module on installed module revisions. An alias module depends
-     * on the aliased module; a real module takes the required dependencies from its
-     * metadata that resolve to an installed artifact.
+     * on the aliased artifact, its classifier and extension included. A real module takes
+     * the required dependencies from its metadata that resolve to an installed artifact.
      */
     private List<IvyDescriptor.Dependency> dependencies(ModuleEntries module) {
         Optional<XmvnArtifact> aliasOf = module.aliasOf();
         if (aliasOf.isPresent()) {
+            XmvnArtifact target = aliasOf.get();
+            XmvnDependency artifact = XmvnDependency.builder(target.getGroupId(), target.getArtifactId())
+                    .extension(target.getExtension())
+                    .classifier(target.getClassifier())
+                    .build();
             return List.of(new IvyDescriptor.Dependency(
-                    aliasOf.get().getGroupId(), aliasOf.get().getArtifactId(), module.rev, null));
+                    target.getGroupId(), target.getArtifactId(), module.rev, artifact));
         }
         return module.requiredDependencies()
                 .flatMap(dep -> index.revision(dep.toKey())
@@ -174,7 +179,9 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             boolean isAlias = !key.getGroupId().equals(artifact.getGroupId())
                     || !key.getArtifactId().equals(artifact.getArtifactId());
             if (isAlias) {
-                alias = alias == null ? artifact : alias;
+                boolean plainJar = ArtifactKey.DEFAULT_EXTENSION.equals(artifact.getExtension())
+                        && artifact.getClassifier().isEmpty();
+                alias = alias == null || plainJar ? artifact : alias;
                 return;
             }
             if (ArtifactKey.POM_EXTENSION.equals(key.getExtension())) {

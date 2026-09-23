@@ -188,6 +188,22 @@ class IvyRepositoryGeneratorTests {
     }
 
     @Test
+    @DisplayName("an alias of a classified artifact depends on that artifact, not the main jar")
+    void aliasKeepsClassifier(@TempDir Path metadata) throws IOException {
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(
+                "<artifact><groupId>g</groupId><artifactId>a</artifactId><classifier>tests</classifier>"
+                        + "<version>1</version><path>" + temp.resolve("a-tests.jar") + "</path>"
+                        + "<aliases><alias><groupId>old</groupId><artifactId>a-tests</artifactId></alias></aliases>"
+                        + "</artifact>"));
+        load(List.of(metadata));
+
+        String descriptor = Files.readString(generator.generate(temp.resolve("cache")).getRoot()
+                .resolve("old/a-tests/1/ivy.xml"));
+
+        assertTrue(descriptor.contains("m:classifier=\"tests\""), descriptor);
+    }
+
+    @Test
     @DisplayName("reuses the repository for unchanged metadata")
     void reusesRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
