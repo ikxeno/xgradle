@@ -20,17 +20,20 @@ set** (prepared by packaging) rather than downloading from the network.
 ## What it does
 
 ### 1) System dependency resolution (projects)
-- Adds a **flatDir** repository for system JAR directories (scanned recursively).
-- Uses Maven **POM metadata** from a system directory to drive resolution:
-    - versions / BOM-managed versions
-    - controlled transitive dependencies
-    - substitutions / mapping to system artifacts
+- Puts an ivy repository generated from XMvn metadata first in every project's repositories
+  (see *How it works*); Gradle resolves transitive dependencies from its descriptors.
+- Resolves every requested version to the installed one, honouring aliases and compat versions.
 
 ### 2) Local Gradle plugin resolution (Settings `pluginManagement`)
-- Configures `pluginManagement.repositories` to include the same system JAR directories,
-  allowing Gradle plugins to be resolved from local/system artifacts.
+- Puts the same repository first in `pluginManagement.repositories`, so `plugins { }` requests
+  resolve through the installed plugin markers.
 
-### 3) Optional SBOM generation
+### 3) Build script classpath (`buildscript { }`)
+- Puts the same repository first in the `buildscript` repositories of `settings.gradle` and of
+  every project script, before the script runs, and resolves `classpath` requests to installed
+  versions. Scripts applied with `apply from:` keep their own `buildscript` and are not covered.
+
+### 4) Optional SBOM generation
 - If `generate.sbom` is set to `spdx` or `cyclonedx`, xgradle-resolution-plugin generates an SBOM report
   from resolved build artifacts.
 - Report path:

@@ -25,6 +25,7 @@ import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
+import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
@@ -68,6 +69,7 @@ class RepositoryManagerTests {
             protected void configure() {
                 bind(Logger.class).toInstance(mock(Logger.class));
                 bind(PluginProcessor.class).toInstance(mock(PluginProcessor.class));
+                bind(DependencySubstitutor.class).toInstance(mock(DependencySubstitutor.class));
                 bind(IvyRepositoryGenerator.class).toInstance(mock(IvyRepositoryGenerator.class));
                 bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
             }

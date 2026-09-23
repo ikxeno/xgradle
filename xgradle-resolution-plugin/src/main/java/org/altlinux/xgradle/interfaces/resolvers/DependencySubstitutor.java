@@ -15,7 +15,7 @@
  */
 package org.altlinux.xgradle.interfaces.resolvers;
 
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.artifacts.ConfigurationContainer;
 
 import java.util.Map;
 import java.util.Set;
@@ -29,9 +29,10 @@ import java.util.Set;
 public interface DependencySubstitutor {
 
     /**
-     * Makes every module request in every project resolve to the installed revision.
+     * Makes every module request of the given configurations, including ones
+     * created later, resolve to the installed revision.
      */
-    void configure(Gradle gradle);
+    void configure(ConfigurationContainer configurations);
 
     /**
      * Declared versions {@link #configure} replaces, as log lines keyed by

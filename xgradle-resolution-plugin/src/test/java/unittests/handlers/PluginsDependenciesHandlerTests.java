@@ -23,6 +23,7 @@ import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
+import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
 import org.gradle.api.initialization.Settings;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,19 +44,23 @@ class PluginsDependenciesHandlerTests {
     private PluginManager pluginManager;
 
     @Mock
+    private ScriptClasspathManager scriptClasspathManager;
+
+    @Mock
     private ProjectDependenciesHandler projectHandler;
 
     @Mock
     private Settings settings;
 
     @Test
-    @DisplayName("Delegates to PluginManager.configure")
+    @DisplayName("Configures plugins and the buildscript classpath")
     void delegatesToPluginManager() {
         Injector injector = Guice.createInjector(
                 Modules.override(new HandlersModule()).with(new AbstractModule() {
                     @Override
                     protected void configure() {
                         bind(PluginManager.class).toInstance(pluginManager);
+                        bind(ScriptClasspathManager.class).toInstance(scriptClasspathManager);
                         bind(ProjectDependenciesHandler.class).toInstance(projectHandler);
                     }
                 })
@@ -65,6 +70,7 @@ class PluginsDependenciesHandlerTests {
         handler.handle(settings);
 
         verify(pluginManager).configure(settings);
-        verifyNoMoreInteractions(pluginManager);
+        verify(scriptClasspathManager).configure(settings);
+        verifyNoMoreInteractions(pluginManager, scriptClasspathManager);
     }
 }

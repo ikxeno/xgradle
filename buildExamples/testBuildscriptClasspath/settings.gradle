@@ -1,0 +1,12 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'commons-io:commons-io:2.16.0'
+    }
+}
+
+rootProject.name = 'testBuildscriptClasspath'
+
+println "settings classpath: " + org.apache.commons.io.FilenameUtils.getExtension('settings.gradle')

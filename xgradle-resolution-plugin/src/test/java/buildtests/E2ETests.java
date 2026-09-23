@@ -90,7 +90,18 @@ public class E2ETests {
         runAndVerifyBuild("../buildExamples/multiModularTest", tempDir);
     }
 
-    private void runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
+    @Test
+    @DisplayName("Build with a buildscript classpath in settings and project scripts")
+    public void testBuildscriptClasspath(@TempDir File tempDir) throws IOException {
+        BuildResult result = runAndVerifyBuild("../buildExamples/testBuildscriptClasspath", tempDir);
+
+        assertTrue(result.getOutput().contains("settings classpath: gradle"),
+                "the settings buildscript classpath must resolve from installed artifacts");
+        assertTrue(result.getOutput().contains("project classpath: [1,2]"),
+                "the project buildscript classpath must resolve from installed artifacts");
+    }
+
+    private BuildResult runAndVerifyBuild(String projectPath, File tempDir) throws IOException {
         File gradleUserHome = new File(tempDir, "gradleUserHome");
         File pluginsDir = new File(gradleUserHome, "lib/plugins");
         assertTrue(pluginsDir.mkdirs());
@@ -139,6 +150,7 @@ public class E2ETests {
                 "dependencies must be resolved through the ivy repository generated from XMvn metadata");
         assertTrue(Files.isRegularFile(testProjectDir.toPath().resolve("build/reports/xgradle/sbom-cyclonedx.json")),
                 "the SBOM must be written when the build ends");
+        return result;
     }
 
     private boolean generatedIvyModule(File gradleUserHome, String module) throws IOException {

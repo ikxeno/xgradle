@@ -21,7 +21,7 @@ import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
-import org.gradle.api.invocation.Gradle;
+import org.gradle.api.artifacts.ConfigurationContainer;
 
 import java.util.Map;
 import java.util.Objects;
@@ -46,8 +46,8 @@ public final class DefaultDependencySubstitutor implements DependencySubstitutor
     }
 
     @Override
-    public void configure(Gradle gradle) {
-        gradle.allprojects(project -> project.getConfigurations().configureEach(configuration ->
+    public void configure(ConfigurationContainer configurations) {
+        configurations.configureEach(configuration ->
                 configuration.getResolutionStrategy().eachDependency(details -> {
                     String requested = details.getRequested().getVersion();
                     index.moduleRevision(details.getRequested().getGroup(), details.getRequested().getName(), requested)
@@ -56,7 +56,7 @@ public final class DefaultDependencySubstitutor implements DependencySubstitutor
                                 details.useVersion(revision);
                                 details.because(REASON);
                             });
-                })));
+                }));
     }
 
     @Override

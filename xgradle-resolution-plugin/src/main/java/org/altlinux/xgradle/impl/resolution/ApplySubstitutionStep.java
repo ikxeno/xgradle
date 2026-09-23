@@ -48,6 +48,6 @@ final class ApplySubstitutionStep implements ResolutionStep {
     public void execute(ResolutionContext resolutionContext) {
         resolutionContext.getOverrideLogs().clear();
         resolutionContext.getOverrideLogs().putAll(substitutor.overrides(resolutionContext.getRequestedVersions()));
-        substitutor.configure(resolutionContext.getGradle());
+        resolutionContext.getGradle().allprojects(project -> substitutor.configure(project.getConfigurations()));
     }
 }

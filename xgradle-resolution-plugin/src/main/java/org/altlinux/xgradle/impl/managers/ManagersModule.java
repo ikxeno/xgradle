@@ -18,6 +18,7 @@ package org.altlinux.xgradle.impl.managers;
 import com.google.inject.AbstractModule;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
+import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
 /**
  * Guice module for Managers bindings.
  *
@@ -30,5 +31,6 @@ public final class ManagersModule extends AbstractModule {
     protected  void configure() {
         bind(RepositoryManager.class).to(DefaultRepositoryManager.class);
         bind(PluginManager.class).to(DefaultPluginManager.class);
+        bind(ScriptClasspathManager.class).to(DefaultScriptClasspathManager.class);
     }
 }

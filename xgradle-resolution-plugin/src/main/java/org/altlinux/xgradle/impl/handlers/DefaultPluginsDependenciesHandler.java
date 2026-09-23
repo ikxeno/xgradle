@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
+import org.altlinux.xgradle.interfaces.managers.ScriptClasspathManager;
 
 import org.gradle.api.initialization.Settings;
 
@@ -33,13 +34,20 @@ import org.gradle.api.initialization.Settings;
 final class DefaultPluginsDependenciesHandler implements PluginsDependenciesHandler {
 
     private final PluginManager pluginManager;
+    private final ScriptClasspathManager scriptClasspathManager;
 
     @Inject
-    DefaultPluginsDependenciesHandler(PluginManager pluginManager) {
+    DefaultPluginsDependenciesHandler(PluginManager pluginManager, ScriptClasspathManager scriptClasspathManager) {
         this.pluginManager = pluginManager;
+        this.scriptClasspathManager = scriptClasspathManager;
     }
 
+    /**
+     * Resolves plugins requested in {@code plugins { }} and the {@code buildscript}
+     * classpath of every script from installed artifacts.
+     */
     public void handle(Settings settings) {
         pluginManager.configure(settings);
+        scriptClasspathManager.configure(settings);
     }
 }

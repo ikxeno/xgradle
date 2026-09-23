@@ -22,6 +22,7 @@ import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.interfaces.managers.PluginManager;
 import org.altlinux.xgradle.interfaces.managers.RepositoryManager;
 import org.altlinux.xgradle.interfaces.processors.PluginProcessor;
+import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.altlinux.xgradle.impl.model.IvyRepository;
@@ -82,6 +83,7 @@ class PluginManagerTests {
                         bind(IvyRepositoryGenerator.class).toInstance(generator);
                         bind(MetadataIndex.class).toInstance(index);
                         bind(PluginProcessor.class).toInstance(pluginProcessor);
+                        bind(DependencySubstitutor.class).toInstance(mock(DependencySubstitutor.class));
                         bind(Logger.class).toInstance(logger);
                     }
                 })

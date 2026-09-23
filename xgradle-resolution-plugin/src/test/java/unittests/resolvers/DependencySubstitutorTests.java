@@ -25,7 +25,6 @@ import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.testfixtures.ProjectBuilder;
 
 import org.junit.jupiter.api.DisplayName;
@@ -41,9 +40,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 
 /**
  * Resolves real requests through the generated repository with the substitutor applied.
@@ -86,13 +82,8 @@ class DependencySubstitutorTests {
         List.of("g:lib:1.0", "g:lib", "g:lib-legacy:0.9", "g:old:1.0")
                 .forEach(notation -> project.getDependencies().add("deps", notation));
 
-        Gradle gradle = mock(Gradle.class);
-        doAnswer(invocation -> {
-            invocation.<org.gradle.api.Action<Project>>getArgument(0).execute(project);
-            return null;
-        }).when(gradle).allprojects(any());
         DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
-        substitutor.configure(gradle);
+        substitutor.configure(project.getConfigurations());
         Map<String, String> overrides = substitutor.overrides(Map.of("g:lib", Set.of("1.0")));
 
         Set<String> resolved = project.getConfigurations().getByName("deps").getIncoming()

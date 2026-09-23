@@ -1,0 +1,14 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.code.gson:gson:2.10.1'
+    }
+}
+
+plugins {
+    id 'java'
+}
+
+println "project classpath: " + new com.google.gson.Gson().toJson([1, 2])
