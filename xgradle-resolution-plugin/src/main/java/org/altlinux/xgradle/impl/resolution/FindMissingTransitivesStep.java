@@ -18,7 +18,6 @@ package org.altlinux.xgradle.impl.resolution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
@@ -63,7 +62,10 @@ final class FindMissingTransitivesStep implements ResolutionStep {
         Set<XmvnArtifact> visited = new HashSet<>();
         ctx.getSystemArtifacts().values().stream()
                 .map(coordinate -> index.resolveModule(
-                        coordinate.getGroupId(), coordinate.getArtifactId(), ArtifactKey.SYSTEM_VERSION))
+                        coordinate.getGroupId(),
+                        coordinate.getArtifactId(),
+                        ctx.getRequestedVersions().getOrDefault(
+                                coordinate.getGroupId() + ":" + coordinate.getArtifactId(), Set.of())))
                 .flatMap(Optional::stream)
                 .forEach(queue::add);
 

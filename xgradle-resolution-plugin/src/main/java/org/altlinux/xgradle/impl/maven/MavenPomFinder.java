@@ -20,10 +20,10 @@ import com.google.inject.Singleton;
 
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -47,17 +47,14 @@ final class MavenPomFinder implements PomFinder {
     }
 
     @Override
-    public MavenCoordinate findPomForArtifact(String groupId, String artifactId) {
-        Optional<XmvnArtifact> pom = index.resolve(
-                new ArtifactKey(groupId, artifactId, ArtifactKey.POM_EXTENSION, "", ArtifactKey.SYSTEM_VERSION));
-
-        return index.resolveModule(groupId, artifactId, ArtifactKey.SYSTEM_VERSION)
+    public MavenCoordinate findModule(String groupId, String artifactId, Collection<String> requestedVersions) {
+        return index.resolveModule(groupId, artifactId, requestedVersions)
                 .map(artifact -> MavenCoordinate.builder()
                         .groupId(groupId)
                         .artifactId(artifactId)
                         .version(artifact.getVersion())
                         .packaging(artifact.getExtension())
-                        .pomPath(pom.map(XmvnArtifact::getPath).orElse(null))
+                        .pomPath(index.pomOf(artifact).orElse(null))
                         .build())
                 .orElse(null);
     }

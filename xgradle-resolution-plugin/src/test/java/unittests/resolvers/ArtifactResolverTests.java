@@ -59,10 +59,10 @@ class ArtifactResolverTests {
                 .version("1")
                 .packaging("pom")
                 .build();
-        when(pomFinder.findPomForArtifact("g", "lib")).thenReturn(lib);
-        when(pomFinder.findPomForArtifact("g", "bom")).thenReturn(bom);
+        when(pomFinder.findModule("g", "lib", Set.of("1"))).thenReturn(lib);
+        when(pomFinder.findModule("g", "bom", Set.of())).thenReturn(bom);
 
-        resolver.resolve(Set.of("g:lib", "g:bom", "g:missing"), logger);
+        resolver.resolve(Set.of("g:lib", "g:bom", "g:missing"), Map.of("g:lib", Set.of("1")), logger);
         resolver.filter();
 
         assertEquals(Map.of("g:lib", lib), resolver.getSystemArtifacts());

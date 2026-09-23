@@ -104,4 +104,14 @@ class PomFinderTests {
                         .map(MavenCoordinate::getArtifactId)
                         .collect(Collectors.toList()));
     }
+
+    @Test
+    @DisplayName("finds a module installed only as a compat version when that version is declared")
+    void findsCompatModuleForDeclaredVersion() {
+        MavenCoordinate model = finder.findModule("org.apache.maven", "maven-model", java.util.Set.of("2.0.7"));
+
+        assertEquals("2.2.1", model.getVersion());
+        assertEquals(null, finder.findPomForArtifact("org.apache.maven", "maven-model"),
+                "without a declared compat version the system version is looked up, and it is not installed");
+    }
 }

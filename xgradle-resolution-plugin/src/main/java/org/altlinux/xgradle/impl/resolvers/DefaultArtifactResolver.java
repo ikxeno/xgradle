@@ -49,16 +49,19 @@ public final class DefaultArtifactResolver implements ArtifactResolver {
 
     /**
      * Looks the declared {@code groupId:artifactId} keys up among the installed
-     * artifacts. Transitive dependencies are left to Gradle, which reads them from
-     * the ivy descriptors generated from the same metadata.
+     * artifacts, preferring a compat version that matches a declared version.
+     * Transitive dependencies are left to Gradle, which reads them from the ivy
+     * descriptors generated from the same metadata.
      */
     @Override
-    public void resolve(Set<String> dependencies, Logger logger) {
+    public void resolve(Set<String> dependencies, Map<String, Set<String>> requestedVersions, Logger logger) {
         Map<String, MavenCoordinate> found = new LinkedHashMap<>();
         Set<String> missing = new LinkedHashSet<>();
         dependencies.stream().sorted().forEach(key -> {
             String[] ga = key.split(":", 3);
-            MavenCoordinate coordinate = ga.length < 2 ? null : pomFinder.findPomForArtifact(ga[0], ga[1]);
+            MavenCoordinate coordinate = ga.length < 2
+                    ? null
+                    : pomFinder.findModule(ga[0], ga[1], requestedVersions.getOrDefault(key, Set.of()));
             if (coordinate == null) {
                 missing.add(key);
             } else {

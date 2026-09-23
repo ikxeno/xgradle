@@ -17,6 +17,7 @@ package org.altlinux.xgradle.interfaces.maven;
 
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -33,7 +34,15 @@ public interface PomFinder {
      *
      * @return the module, or null if it is not installed
      */
-    MavenCoordinate findPomForArtifact(String groupId, String artifactId);
+    default MavenCoordinate findPomForArtifact(String groupId, String artifactId) {
+        return findModule(groupId, artifactId, List.of());
+    }
+
+    /**
+     * Like {@link #findPomForArtifact}, for a dependency declared with the given
+     * versions: a compat version matching one of them wins over the system version.
+     */
+    MavenCoordinate findModule(String groupId, String artifactId, Collection<String> requestedVersions);
 
     /**
      * Every installed module of a group, by artifactId.

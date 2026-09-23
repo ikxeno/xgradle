@@ -20,7 +20,6 @@ import org.altlinux.xgradle.impl.enums.SbomComponentKind;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.models.SbomComponent;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataLicense;
@@ -35,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -52,8 +52,6 @@ class DefaultSbomComponentCollectorTests {
     @Mock
     private MetadataIndex index;
 
-    @Mock
-    private PomFinder pomFinder;
 
     @Test
     @DisplayName("Collects library plugin and resolved jar components")
@@ -89,7 +87,7 @@ class DefaultSbomComponentCollectorTests {
                 pomPath
         );
 
-        DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder);
+        DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index);
         List<SbomComponent> components = collector.collect(
                 List.of(library, bom),
                 List.of(plugin),
@@ -135,12 +133,11 @@ class DefaultSbomComponentCollectorTests {
                 XmvnArtifact.builder("com.google.guava", "failureaccess", "1.0.3", tempDir.resolve("guava.xml"))
                         .path(installedJar)
                         .build()));
-        when(pomFinder.findPomForArtifact("com.google.guava", "failureaccess"))
-                .thenReturn(coordinate("com.google.guava", "failureaccess", "1.0.3", "jar", pomPath));
+        when(index.pomOf(any())).thenReturn(Optional.of(pomPath));
         when(pomMetadataReader.read(pomPath)).thenReturn(new PomMetadata(
                 null, null, List.of(new PomMetadataLicense("Apache-2.0", null))));
 
-        List<SbomComponent> components = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder)
+        List<SbomComponent> components = new DefaultSbomComponentCollector(pomMetadataReader, index)
                 .collect(List.of(), List.of(), List.of(repositoryLink.toFile()));
 
         assertEquals(1, components.size());
@@ -167,7 +164,7 @@ class DefaultSbomComponentCollectorTests {
                 null
         );
 
-        DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index, pomFinder);
+        DefaultSbomComponentCollector collector = new DefaultSbomComponentCollector(pomMetadataReader, index);
         List<SbomComponent> components = collector.collect(
                 List.of(missingGroup, noPomPath),
                 null,

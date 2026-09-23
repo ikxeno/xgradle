@@ -23,7 +23,6 @@ import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.models.SbomComponent;
 import org.altlinux.xgradle.impl.models.SbomLicense;
 import org.altlinux.xgradle.interfaces.collectors.SbomComponentCollector;
-import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.services.PomMetadata;
 import org.altlinux.xgradle.interfaces.services.PomMetadataLicense;
@@ -51,13 +50,11 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
 
     private final PomMetadataReader pomMetadataReader;
     private final MetadataIndex index;
-    private final PomFinder pomFinder;
 
     @Inject
-    public DefaultSbomComponentCollector(PomMetadataReader pomMetadataReader, MetadataIndex index, PomFinder pomFinder) {
+    public DefaultSbomComponentCollector(PomMetadataReader pomMetadataReader, MetadataIndex index) {
         this.pomMetadataReader = pomMetadataReader;
         this.index = index;
-        this.pomFinder = pomFinder;
     }
 
     @Override
@@ -158,9 +155,7 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
                 .groupId(artifact.getGroupId())
                 .artifactId(artifact.getArtifactId())
                 .version(artifact.getVersion())
-                .pomPath(Optional.ofNullable(pomFinder.findPomForArtifact(artifact.getGroupId(), artifact.getArtifactId()))
-                        .map(MavenCoordinate::getPomPath)
-                        .orElse(null))
+                .pomPath(index.pomOf(artifact).orElse(null))
                 .build();
         PomMetadata metadata = readPomMetadata(coordinate, metadataByPomPath);
         return SbomComponent.maven(

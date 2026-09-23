@@ -20,6 +20,9 @@ import org.altlinux.xgradle.impl.model.XmvnArtifact;
 
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -62,6 +65,38 @@ public interface MetadataIndex {
         return moduleKeys(groupId, artifactId, version)
                 .map(this::resolve)
                 .flatMap(Optional::stream)
+                .findFirst();
+    }
+
+    /**
+     * Main artifact of the installed module a dependency declared with the given
+     * versions resolves to: a compat version that exactly matches one of them, else
+     * the system version.
+     */
+    default Optional<XmvnArtifact> resolveModule(String groupId, String artifactId,
+                                                 Collection<String> requestedVersions) {
+        return Stream.concat(
+                        requestedVersions.stream().filter(Objects::nonNull).sorted(),
+                        Stream.of(ArtifactKey.SYSTEM_VERSION))
+                .flatMap(version -> moduleKeys(groupId, artifactId, version))
+                .map(entries()::get)
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    /**
+     * Path of the POM installed with the given artifact, for its own version.
+     */
+    default Optional<Path> pomOf(XmvnArtifact artifact) {
+        return artifact.lookupKeys().stream()
+                .filter(key -> key.getGroupId().equals(artifact.getGroupId())
+                        && key.getArtifactId().equals(artifact.getArtifactId()))
+                .map(key -> new ArtifactKey(
+                        key.getGroupId(), key.getArtifactId(), ArtifactKey.POM_EXTENSION, "", key.getVersion()))
+                .map(entries()::get)
+                .filter(Objects::nonNull)
+                .map(XmvnArtifact::getPath)
+                .filter(Objects::nonNull)
                 .findFirst();
     }
 
