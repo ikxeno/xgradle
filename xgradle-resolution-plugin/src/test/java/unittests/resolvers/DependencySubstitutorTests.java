@@ -69,6 +69,49 @@ class DependencySubstitutorTests {
         MetadataIndex index = injector.getInstance(MetadataIndex.class);
         IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
 
+        Project project = project(repository);
+        project.getConfigurations().create("deps");
+        List.of("g:lib:1.0", "g:lib", "g:lib-legacy:0.9", "g:old:1.0")
+                .forEach(notation -> project.getDependencies().add("deps", notation));
+
+        DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
+        substitutor.configure(project.getConfigurations());
+
+        Set<String> resolved = resolved(project, "deps");
+
+        assertEquals(Set.of("lib:1.5", "lib-legacy:1.5", "old:1.0"), resolved);
+        assertEquals(Optional.of("1.5"), substitutor.replacement("g", "lib", "1.0"));
+        assertEquals(Optional.empty(), substitutor.replacement("g", "lib", "1.5"), "the installed version is kept");
+    }
+
+    @Test
+    @DisplayName("a version the build forces is still replaced by the installed one, as XMvn ignores it")
+    void overridesForcedVersion() throws IOException {
+        Path metadata = Files.createDirectories(temp.resolve("metadata"));
+        Path jars = Files.createDirectories(temp.resolve("java"));
+        Files.writeString(metadata.resolve("packages.xml"), "<metadata><artifacts>"
+                + artifact("lib", "4.13.1", jars.resolve("lib.jar"),
+                "<aliases><alias><groupId>g</groupId><artifactId>lib-dep</artifactId></alias></aliases>")
+                + artifact("rules", "1.19.0", jars.resolve("rules.jar"),
+                "<dependencies><dependency><groupId>g</groupId><artifactId>lib-dep</artifactId></dependency></dependencies>")
+                + "</artifacts></metadata>");
+        Files.writeString(jars.resolve("lib.jar"), "lib");
+        Files.writeString(jars.resolve("rules.jar"), "rules");
+
+        Injector injector = Installations.injector(List.of(metadata));
+        IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
+
+        Project project = project(repository);
+        project.getConfigurations().create("deps", configuration ->
+                configuration.getResolutionStrategy().force("g:lib-dep:4.11"));
+        project.getDependencies().add("deps", "g:rules:1.19.0");
+        new DefaultDependencySubstitutor(injector.getInstance(MetadataIndex.class))
+                .configure(project.getConfigurations());
+
+        assertEquals(Set.of("rules:1.19.0", "lib-dep:4.13.1", "lib:4.13.1"), resolved(project, "deps"));
+    }
+
+    private Project project(IvyRepository repository) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         project.getRepositories().ivy(repo -> {
             repo.setUrl(repository.getRoot().toUri());
@@ -78,23 +121,16 @@ class DependencySubstitutorTests {
             });
             repo.metadataSources(sources -> sources.ivyDescriptor());
         });
-        project.getConfigurations().create("deps");
-        List.of("g:lib:1.0", "g:lib", "g:lib-legacy:0.9", "g:old:1.0")
-                .forEach(notation -> project.getDependencies().add("deps", notation));
+        return project;
+    }
 
-        DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
-        substitutor.configure(project.getConfigurations());
-
-        Set<String> resolved = project.getConfigurations().getByName("deps").getIncoming()
+    private static Set<String> resolved(Project project, String configuration) {
+        return project.getConfigurations().getByName(configuration).getIncoming()
                 .getResolutionResult().getAllComponents().stream()
                 .map(ResolvedComponentResult::getModuleVersion)
                 .filter(module -> module != null && module.getGroup().equals("g"))
                 .map(module -> module.getName() + ":" + module.getVersion())
                 .collect(Collectors.toSet());
-
-        assertEquals(Set.of("lib:1.5", "lib-legacy:1.5", "old:1.0"), resolved);
-        assertEquals(Optional.of("1.5"), substitutor.replacement("g", "lib", "1.0"));
-        assertEquals(Optional.empty(), substitutor.replacement("g", "lib", "1.5"), "the installed version is kept");
     }
 
     private static String artifact(String artifactId, String version, Path path, String extra) {

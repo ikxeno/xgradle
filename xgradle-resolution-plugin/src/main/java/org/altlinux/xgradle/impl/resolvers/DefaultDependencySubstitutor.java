@@ -47,8 +47,9 @@ public final class DefaultDependencySubstitutor implements DependencySubstitutor
     public void configure(ConfigurationContainer configurations) {
         configurations.configureEach(configuration ->
                 configuration.getResolutionStrategy().eachDependency(details ->
-                        replacement(details.getRequested().getGroup(), details.getRequested().getName(),
-                                details.getRequested().getVersion())
+                        index.moduleRevision(details.getRequested().getGroup(), details.getRequested().getName(),
+                                        details.getRequested().getVersion())
+                                .filter(revision -> !revision.equals(details.getTarget().getVersion()))
                                 .ifPresent(revision -> {
                                     details.useVersion(revision);
                                     details.because(REASON);
