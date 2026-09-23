@@ -22,12 +22,10 @@ import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -66,27 +64,28 @@ final class DefaultMetadataIndex implements MetadataIndex {
      * has a namespace. A dropped key can be taken again by the next artifact that claims it.
      */
     private void add(Map<ArtifactKey, XmvnArtifact> index, XmvnArtifact artifact, boolean ignoreDuplicates) {
-        Set<ArtifactKey> duplicates = new HashSet<>();
-        artifact.lookupKeys().stream()
-                .filter(key -> !duplicates.contains(key))
-                .forEach(key -> {
-                    XmvnArtifact existing = index.putIfAbsent(key, artifact);
-                    if (existing == null) {
-                        return;
-                    }
-                    duplicates.add(key);
-                    if (ignoreDuplicates) {
-                        index.remove(key);
-                        conflicts.add("Ignoring XMvn metadata for " + key + ": it is provided by both "
-                                + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
-                    } else {
-                        conflicts.add("Duplicate XMvn metadata for " + key + ": "
-                                + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
-                        if (existing.getNamespace().isEmpty() || !artifact.getNamespace().isEmpty()) {
-                            index.put(key, artifact);
-                        }
-                    }
-                });
+        for (ArtifactKey key : artifact.lookupKeys()) {
+            claim(index, key, artifact, ignoreDuplicates);
+        }
+    }
+
+    private void claim(Map<ArtifactKey, XmvnArtifact> index, ArtifactKey key, XmvnArtifact artifact,
+                       boolean ignoreDuplicates) {
+        XmvnArtifact existing = index.putIfAbsent(key, artifact);
+        if (existing == null) {
+            return;
+        }
+        if (ignoreDuplicates) {
+            index.remove(key);
+            conflicts.add("Ignoring XMvn metadata for " + key + ": it is provided by both "
+                    + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
+            return;
+        }
+        conflicts.add("Duplicate XMvn metadata for " + key + ": "
+                + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
+        if (existing.getNamespace().isEmpty() || !artifact.getNamespace().isEmpty()) {
+            index.put(key, artifact);
+        }
     }
 
     /**
