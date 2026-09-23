@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Installed artifact described by an XMvn metadata file
- * ({@code /usr/share/maven-metadata/*.xml}).
+ * Installed artifact, as an XMvn metadata file ({@code /usr/share/maven-metadata/*.xml})
+ * describes it, or as read from a POM installed without metadata.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -122,6 +122,9 @@ public final class XmvnArtifact {
         return dependencies;
     }
 
+    /**
+     * The metadata file or POM this artifact was read from.
+     */
     public Path getMetadataFile() {
         return metadataFile;
     }

@@ -55,8 +55,8 @@ final class DefaultRepositoryManager implements RepositoryManager {
     }
 
     /**
-     * Gradle's repository DSL only appends, so the repository is created and then
-     * moved to the front: system artifacts must win over any other repository.
+     * Adds the repository and moves it to the front, because the repository DSL can
+     * only append. System artifacts must win over every other repository.
      */
     private void addFirst(RepositoryHandler repositories, String name, IvyRepository repository) {
         IvyArtifactRepository ivy = repositories.ivy(repo -> {

@@ -29,9 +29,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Artifact index with the semantics of XMvn's {@code DefaultMetadataResult}
- * (by default a key two artifacts claim is dropped, as with XMvn's default
- * {@code ignoreDuplicateMetadata=true}).
+ * Artifact index that resolves keys like XMvn's {@code DefaultMetadataResult}.
+ * With XMvn's default {@code ignoreDuplicateMetadata=true}, a key claimed by two
+ * artifacts is dropped.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -56,11 +56,10 @@ final class DefaultMetadataIndex implements MetadataIndex {
     }
 
     /**
-     * Adds an artifact under each of its keys, handling a key another artifact
-     * already holds exactly like XMvn's {@code DefaultMetadataResult}: with
-     * {@code ignoreDuplicates} the key is dropped, otherwise the later artifact wins
-     * unless only the earlier one belongs to a namespace. As in XMvn, a key dropped
-     * as a duplicate is free again for the next artifact that claims it.
+     * Adds an artifact under each of its keys. A key another artifact already holds
+     * is handled as in XMvn's {@code DefaultMetadataResult}: with {@code ignoreDuplicates}
+     * it is dropped, otherwise the later artifact takes it unless only the earlier one
+     * has a namespace. A dropped key can be taken again by the next artifact that claims it.
      */
     private void add(Map<ArtifactKey, XmvnArtifact> index, XmvnArtifact artifact, boolean ignoreDuplicates) {
         Set<ArtifactKey> duplicates = new HashSet<>();
@@ -87,7 +86,7 @@ final class DefaultMetadataIndex implements MetadataIndex {
     }
 
     /**
-     * Keys two artifacts claimed, described for a warning.
+     * Warnings about keys that more than one artifact claimed.
      */
     List<String> conflicts() {
         return Collections.unmodifiableList(conflicts);

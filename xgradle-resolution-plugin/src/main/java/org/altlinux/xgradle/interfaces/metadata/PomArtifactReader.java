@@ -30,8 +30,10 @@ import java.util.Set;
 public interface PomArtifactReader {
 
     /**
-     * Reads every POM under {@code pomsRoot} except those in {@code skip}, pairing
-     * {@code pomsRoot/X/Y.pom} with the jar {@code javaRoot/X/Y.jar} if it exists.
+     * Reads every POM under {@code pomsRoot} except those in {@code skip}, each once
+     * even if symlinked, and pairs it with its jar under {@code javaRoot} if one is
+     * installed: {@code X/Y.jar} for {@code X/Y.pom}, the jar of a JPP-named POM, or
+     * a jar named after the artifactId. An unreadable POM is skipped with a warning.
      */
     List<XmvnArtifact> read(Path pomsRoot, Path javaRoot, Set<Path> skip);
 }

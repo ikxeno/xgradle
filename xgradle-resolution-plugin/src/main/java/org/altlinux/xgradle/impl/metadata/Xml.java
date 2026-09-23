@@ -32,8 +32,8 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
- * Namespace-agnostic reading of XMvn XML files, which come with and without
- * their namespace, through a parser that refuses DTDs and external entities.
+ * Reads XMvn XML files by local element names, because the files come both with
+ * and without a namespace. The parser refuses DTDs and external entities.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

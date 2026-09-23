@@ -45,11 +45,11 @@ import java.util.stream.Collectors;
  * project's script, so the repository is in place when the script's
  * {@code buildscript { }} block resolves.
  *
- * <p>Scripts applied with {@code apply from:} are not covered: Gradle gives each
+ * <p>Scripts applied with {@code apply from:} are not supported. Gradle gives each
  * of them a detached resolver with its own {@code buildscript} repositories and
- * offers no public hook to reach it before it resolves, and by the time a
- * resolution listener sees the classpath its dependencies can no longer be
- * changed. Their classpath is reported with a warning instead.
+ * has no public hook to reach it before it resolves. A resolution listener sees
+ * the classpath only after its dependencies are frozen, so all the plugin can do
+ * is warn.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

@@ -45,9 +45,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Writes one ivy module per installed module revision: an {@code ivy.xml}
- * built from the XMvn dependency list, the way XMvn builds an effective POM
- * for Maven, plus symlinks to the installed files.
+ * Writes one ivy module per installed module revision: an {@code ivy.xml} with
+ * the dependencies listed in the XMvn metadata, the same list XMvn builds its
+ * effective POM from, and symlinks to the installed files.
  *
  * <p>The repository is kept in a {@link RepositoryCache} under a fingerprint of
  * its content.
@@ -120,6 +120,10 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         }
     }
 
+    /**
+     * The module's {@code ivy.xml}. A module without a jar gets an empty
+     * {@code <publications/>}, because without it ivy expects a jar named after the module.
+     */
     private String descriptor(Module module) {
         StringBuilder xml = new StringBuilder()
                 .append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -130,7 +134,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 .append("\" status=\"release\"/>\n")
                 .append("  <configurations>\n    <conf name=\"").append(CONF).append("\"/>\n  </configurations>\n");
 
-        // An empty <publications/> is required: without it ivy assumes a jar named after the module.
         Optional<XmvnArtifact> published = module.publishedArtifact();
         if (published.isPresent()) {
             String ext = escape(published.get().getExtension());
@@ -196,9 +199,8 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
     }
 
     /**
-     * Hash of everything the repository consists of, so a repository is reused
-     * exactly when it would be written the same way, whatever changed in the
-     * metadata, the installed files or the configuration.
+     * Hash of every descriptor and link the repository would contain. A cached
+     * repository is reused only if it would be written with the same files.
      */
     private static String fingerprint(Collection<Module> modules) {
         try {
@@ -240,6 +242,10 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             this.rev = rev;
         }
 
+        /**
+         * Adds an index entry of this module. The jar is the main artifact; a file with
+         * another extension becomes the main artifact only if the module has no jar.
+         */
         private void add(ArtifactKey key, XmvnArtifact artifact) {
             boolean alias = !key.getGroupId().equals(artifact.getGroupId())
                     || !key.getArtifactId().equals(artifact.getArtifactId());
@@ -251,7 +257,6 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 pom = pom == null ? artifact : pom;
                 return;
             }
-            // The jar is the main artifact; another extension only when the module has no jar.
             boolean jar = ArtifactKey.DEFAULT_EXTENSION.equals(key.getExtension());
             if (key.getClassifier().isEmpty() && (main == null || jar)) {
                 main = artifact;

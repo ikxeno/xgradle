@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Order {
 
-    /** Order of a step without the annotation, and the default: after all others. */
+    /** Order of a step without the annotation, and the default value: after all other steps. */
     int LAST = Integer.MAX_VALUE;
 
     /** Steps run in ascending order. */

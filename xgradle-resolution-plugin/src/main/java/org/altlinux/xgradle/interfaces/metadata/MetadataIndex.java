@@ -24,8 +24,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Immutable index of installed artifacts, resolving them the same way the
- * XMvn resolver does.
+ * Immutable index of installed artifacts. Lookups follow the rules of the XMvn resolver.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -45,9 +44,8 @@ public interface MetadataIndex {
     Optional<XmvnArtifact> resolve(ArtifactKey key);
 
     /**
-     * Revision of the installed module a key resolves to, as XMvn resolves it:
-     * the requested compat version if one is installed, otherwise the upstream
-     * version of the default artifact.
+     * Revision of the installed module a key resolves to: the requested compat
+     * version if it is installed, otherwise the upstream version of the default artifact.
      */
     default Optional<String> revision(ArtifactKey key) {
         if (!key.isSystemVersion() && entries().containsKey(key)) {
@@ -57,8 +55,8 @@ public interface MetadataIndex {
     }
 
     /**
-     * The artifact that stands for a module: its jar, or its POM for a POM-only
-     * module such as a parent, a BOM or a Gradle plugin marker.
+     * Main artifact of a module: its jar, or its POM if the module has no jar, as a
+     * parent, a BOM or a Gradle plugin marker.
      */
     default Optional<XmvnArtifact> resolveModule(String groupId, String artifactId, String version) {
         return moduleKeys(groupId, artifactId, version)

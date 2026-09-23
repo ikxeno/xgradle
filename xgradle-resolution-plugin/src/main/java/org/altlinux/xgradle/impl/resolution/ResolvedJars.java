@@ -34,8 +34,8 @@ final class ResolvedJars {
     }
 
     /**
-     * A set that every resolvable configuration of every project adds its resolved
-     * jars to once it is resolved.
+     * Returns a set that receives the jars of each resolvable configuration of every
+     * project when that configuration is resolved.
      */
     static Set<File> watch(Gradle gradle) {
         Set<File> jars = ConcurrentHashMap.newKeySet();

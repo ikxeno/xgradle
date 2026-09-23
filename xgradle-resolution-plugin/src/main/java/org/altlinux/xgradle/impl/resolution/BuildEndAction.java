@@ -19,9 +19,8 @@ import org.gradle.api.services.BuildService;
 import org.gradle.api.services.BuildServiceParameters;
 
 /**
- * Runs an action when the build ends. Gradle closes shared build services at
- * the end of the build, which replaces {@code Gradle.buildFinished}, removed in
- * Gradle 10.
+ * Runs an action when the build ends. Gradle closes shared build services at the
+ * end of the build; this replaces {@code Gradle.buildFinished}, which Gradle 10 removes.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

@@ -30,10 +30,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A directory of repositories named by the fingerprint of their content and
- * shared by concurrent builds. A repository is written into a temporary
- * directory that is then renamed, so no build sees one half written, and
- * repositories no build used for a week are removed.
+ * Directory of repositories named by the fingerprint of their content and shared
+ * by concurrent builds. A repository is written to a temporary directory and then
+ * renamed, so no build sees it half written. Repositories unused for a week are removed.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -122,7 +121,7 @@ final class RepositoryCache {
      * Renames the written repository to its final name. Another build may have
      * renamed its copy first; depending on the platform the rename then fails with
      * {@code FileAlreadyExistsException}, {@code DirectoryNotEmptyException} or a
-     * plain {@code FileSystemException}, so the outcome is judged by the marker.
+     * plain {@code FileSystemException}, so the marker decides whether the repository is in place.
      * A directory without the marker is a leftover and is replaced.
      */
     private void moveIntoPlace(Path tmp, Path root) throws IOException {
@@ -150,13 +149,15 @@ final class RepositoryCache {
         return Files.isRegularFile(root.resolve(COMPLETE_MARKER));
     }
 
-    /** Renames a directory out of the way before deleting it, so no one sees it half deleted. */
+    /**
+     * Renames a directory to a temporary name, then deletes it, so other builds never
+     * see it half deleted. A directory another build has already removed is skipped.
+     */
     private static void discard(Path dir) throws IOException {
         Path trash = Files.createTempDirectory(dir.getParent(), dir.getFileName() + ".old.");
         try {
             Files.move(dir, trash.resolve("content"), StandardCopyOption.ATOMIC_MOVE);
-        } catch (NoSuchFileException e) {
-            // Discarded by another build already.
+        } catch (NoSuchFileException ignored) {
         }
         deleteRecursively(trash);
     }

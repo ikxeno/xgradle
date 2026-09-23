@@ -51,11 +51,10 @@ public final class XmvnDependency {
     }
 
     /**
-     * Key XMvn uses to look this dependency up: its effective POM carries the
-     * requested version, which the resolver matches against compat versions
-     * before falling back to {@link ArtifactKey#SYSTEM_VERSION}. The resolved
-     * version XMvn also records only says what it resolved to at install time,
-     * so it is not read.
+     * Key to look this dependency up with. XMvn puts the requested version into the
+     * effective POM, and its resolver tries it as a compat version before falling back
+     * to {@link ArtifactKey#SYSTEM_VERSION}. The resolved version in the metadata only
+     * records the result at install time, so it is not read.
      */
     public ArtifactKey toKey() {
         return new ArtifactKey(groupId, artifactId, extension, classifier, requestedVersion);

@@ -42,9 +42,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Builds artifact records from installed POM files the way XMvn records a
- * package: the jar and the POM of a module, both carrying the compile and
- * runtime dependencies of the POM.
+ * Builds artifact records from installed POM files in the form XMvn records a
+ * package: a jar and a POM per module, each with the compile and runtime
+ * dependencies of the POM.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
@@ -128,6 +128,10 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .mapToObj(i -> name.substring(0, i) + "/" + name.substring(i + 1));
     }
 
+    /**
+     * The POM of a module and its jar, if one is installed. The packaging is ignored
+     * because ALT POMs of jar modules often declare {@code <packaging>pom</packaging>}.
+     */
     private Stream<XmvnArtifact> artifacts(Path pom, Path relativePom, Path javaRoot) {
         MavenCoordinate coordinate = pomParser.parsePom(pom);
         if (coordinate == null || !coordinate.isValid()) {
@@ -139,7 +143,6 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .map(DefaultPomArtifactReader::toDependency)
                 .collect(Collectors.toList());
 
-        // The packaging says nothing here: ALT POMs of jar modules often declare <packaging>pom</packaging>.
         Stream<XmvnArtifact> jarArtifact = jarCandidates(relativePom, coordinate.getArtifactId())
                 .map(javaRoot::resolve)
                 .filter(Files::isRegularFile)

@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Where the system keeps what is installed, and how XMvn is configured to read it.
+ * Locations of the installed artifacts and the XMvn settings for reading them.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

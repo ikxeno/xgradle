@@ -45,9 +45,9 @@ import static org.altlinux.xgradle.impl.metadata.Xml.children;
 import static org.altlinux.xgradle.impl.metadata.Xml.text;
 
 /**
- * Reads XMvn metadata files, following the XMvn reader: files in a directory
- * are read in name order and may be gzip-compressed, and a file that cannot be
- * read is skipped with a warning, so one broken package does not break every build.
+ * Reads XMvn metadata files. Like XMvn, it reads the files of a directory in name
+ * order, accepts gzip-compressed files and skips a file it cannot read with a
+ * warning, so one broken package does not break every build.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

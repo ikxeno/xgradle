@@ -128,8 +128,8 @@ public final class DefaultSbomComponentCollector implements SbomComponentCollect
     }
 
     /**
-     * Resolved jars, transitive ones included. A jar of an installed artifact is
-     * reported with its coordinates and POM metadata, any other jar by file name.
+     * Adds every resolved jar, including transitive ones. A jar of an installed artifact
+     * gets its coordinates and POM metadata; any other jar is listed by file name.
      */
     private void appendResolvedJarComponents(
             Collection<File> resolvedJars,

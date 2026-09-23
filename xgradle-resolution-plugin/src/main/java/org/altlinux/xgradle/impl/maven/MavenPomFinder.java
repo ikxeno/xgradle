@@ -31,8 +31,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Finds installed modules in the XMvn metadata index, the way XMvn resolves
- * a dependency on the default (non-compat) version.
+ * Finds installed modules in the XMvn metadata index by their system
+ * (non-compat) version.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */

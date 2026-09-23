@@ -65,7 +65,6 @@ final class DefaultPluginProcessor implements PluginProcessor {
             return;
         }
 
-        // A POM-only module, such as a plugin marker, is fine: Gradle follows its dependencies.
         MavenCoordinate coord = versionScanner.findPluginArtifact(pluginId);
         if (coord != null && coord.isValid()) {
             usePlugin(requested, coord);

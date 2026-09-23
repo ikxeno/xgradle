@@ -32,7 +32,7 @@ public interface IvyRepositoryGenerator {
 
     /**
      * Writes the repository for the current index under the cache directory,
-     * or reuses one written earlier for the same metadata.
+     * or reuses one written earlier with the same content.
      */
     IvyRepository generate(Path cacheDirectory);
 }

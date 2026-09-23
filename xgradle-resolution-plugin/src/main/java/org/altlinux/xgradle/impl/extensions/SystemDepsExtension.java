@@ -64,8 +64,8 @@ public class SystemDepsExtension {
     }
 
     /**
-     * Where the generated ivy repositories are cached: under the Gradle user home,
-     * next to Gradle's own caches, so they are shared by all builds of the user.
+     * Cache directory of the generated ivy repositories, {@code caches/xgradle/ivy} in
+     * the Gradle user home. All builds of the user share it.
      */
     public static Path getIvyCacheDir(Gradle gradle) {
         return gradle.getGradleUserHomeDir().toPath().resolve("caches").resolve("xgradle").resolve("ivy");
@@ -79,11 +79,12 @@ public class SystemDepsExtension {
     }
 
     /**
-     * XMvn metadata locations: {@code maven.metadata.dir} (comma-separated) from a
-     * system property or {@code ~/.xgradle/xgradle.config}; otherwise the metadata
-     * repositories of the XMvn configuration that exist, as XMvn skips the others;
-     * otherwise {@code /usr/share/maven-metadata} if it exists. A location set
-     * explicitly is returned even if it is missing, so that reading it fails loudly.
+     * XMvn metadata locations. The first source that gives any wins:
+     * {@code maven.metadata.dir} (comma-separated) from a system property or
+     * {@code ~/.xgradle/xgradle.config}; the existing metadata repositories of the
+     * XMvn configuration (XMvn skips missing ones too); {@code /usr/share/maven-metadata}.
+     * An explicitly set location is returned even when it is missing, so reading it
+     * fails with an error.
      */
     public static List<Path> getMetadataPaths(XmvnConfiguration xmvn) {
         Optional<String> configured = property(MAVEN_METADATA_DIR_KEY);

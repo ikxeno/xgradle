@@ -30,9 +30,10 @@ public interface MetadataReader {
     /**
      * Reads every metadata file under the given locations, in XMvn order:
      * locations as given, files inside a directory sorted by name.
-     * Gzip-compressed files are accepted.
+     * Gzip-compressed files are accepted. A file that cannot be read is skipped with
+     * a warning.
      *
-     * @throws org.gradle.api.GradleException if a location is missing or a file cannot be parsed
+     * @throws org.gradle.api.GradleException if a location does not exist
      */
     List<XmvnArtifact> read(List<Path> locations);
 }

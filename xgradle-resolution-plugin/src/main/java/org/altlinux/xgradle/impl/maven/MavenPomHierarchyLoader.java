@@ -99,9 +99,9 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
     }
 
     /**
-     * Parent POM path from the XMvn metadata, resolved like XMvn resolves the parent
-     * version: a compat version first, then the system one. Falls back to a sibling
-     * file named after the parent artifactId for POMs not described by metadata.
+     * Path of the parent POM. As in XMvn, the metadata is searched for the parent's
+     * version as a compat version first, then for the system version. A POM without
+     * metadata finds its parent in a sibling file named after the parent artifactId.
      */
     private Optional<Path> resolveParentPath(Path childPath, Parent parent) {
         ArtifactKey key = new ArtifactKey(
