@@ -182,6 +182,20 @@ class MetadataIndexTests {
     }
 
     @Test
+    @DisplayName("takes the POM as the main artifact of a module whose jar has no file")
+    void jarWithoutPathIsNotInstalled(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("a.xml"), "<metadata><artifacts>"
+                + "<artifact><groupId>g</groupId><artifactId>a</artifactId><version>1</version></artifact>"
+                + "<artifact><groupId>g</groupId><artifactId>a</artifactId><extension>pom</extension>"
+                + "<version>1</version><path>/usr/share/maven-poms/a.pom</path></artifact>"
+                + "</artifacts></metadata>");
+
+        index = build(List.of(dir), true);
+
+        assertEquals("pom", index.resolveModule("g", "a", "SYSTEM").orElseThrow().getExtension());
+    }
+
+    @Test
     @DisplayName("fails on a missing location instead of skipping it")
     void failsOnMissingLocation(@TempDir Path dir) {
         ProvisionException e = assertThrows(ProvisionException.class,

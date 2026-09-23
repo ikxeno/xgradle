@@ -58,13 +58,15 @@ public interface MetadataIndex {
     }
 
     /**
-     * Main artifact of a module: its jar, or its POM if the module has no jar, as a
-     * parent, a BOM or a Gradle plugin marker.
+     * Main artifact of a module: its jar, or its POM if the module has no installed
+     * jar, as a parent, a BOM or a Gradle plugin marker. An entry without a file does
+     * not count as installed.
      */
     default Optional<XmvnArtifact> resolveModule(String groupId, String artifactId, String version) {
         return moduleKeys(groupId, artifactId, version)
                 .map(this::resolve)
                 .flatMap(Optional::stream)
+                .filter(artifact -> artifact.getPath() != null)
                 .findFirst();
     }
 
@@ -81,6 +83,7 @@ public interface MetadataIndex {
                 .flatMap(version -> moduleKeys(groupId, artifactId, version))
                 .map(entries()::get)
                 .filter(Objects::nonNull)
+                .filter(artifact -> artifact.getPath() != null)
                 .findFirst();
     }
 
