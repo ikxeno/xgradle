@@ -22,9 +22,9 @@ import com.google.inject.Injector;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
-import org.altlinux.xgradle.interfaces.metadata.InstalledArtifactsLoader;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
@@ -59,28 +59,19 @@ import static org.mockito.Mockito.mock;
  *
  * @author Ivan Khanas xeno@altlinux.org
  */
-@DisplayName("Installed artifacts loader")
-class InstalledArtifactsLoaderTests {
+@DisplayName("Installed artifacts index")
+class InstalledIndexTests {
 
     private static final String PACKAGE = "biz-aQute-bnd-gradle-plugins";
 
     @TempDir
     Path temp;
 
-    private Injector injector;
     private Path poms;
     private Path java;
 
     @BeforeEach
     void setUp() throws IOException, URISyntaxException {
-        injector = Guice.createInjector(
-                new MetadataModule(), new ParsersModule(), new MavenModule(),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(Logger.class).toInstance(mock(Logger.class));
-                    }
-                });
         poms = Path.of(Objects.requireNonNull(getClass().getResource("/installed-poms")).toURI());
         java = Files.createDirectories(temp.resolve("java").resolve(PACKAGE));
         Files.writeString(java.resolve("biz.aQute.bnd.gradle.jar"), "bnd");
@@ -89,7 +80,7 @@ class InstalledArtifactsLoaderTests {
     @Test
     @DisplayName("resolves a plugin marker through the POMs to the implementation jar")
     void resolvesMarkerChain() {
-        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(), true, poms, temp.resolve("java"));
+        Injector injector = install(List.of(), true, poms, temp.resolve("java"));
         IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
 
         assertEquals(Set.of("biz.aQute.bnd.gradle.jar"),
@@ -110,7 +101,7 @@ class InstalledArtifactsLoaderTests {
         Files.createSymbolicLink(copy.getParent().resolve("JPP-biz.aQute.bnd.gradle.pom"),
                 copy.resolve("biz.aQute.bnd.gradle.pom"));
 
-        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(), true, copy.getParent(), temp.resolve("java"));
+        Injector injector = install(List.of(), true, copy.getParent(), temp.resolve("java"));
 
         assertTrue(injector.getInstance(MetadataIndex.class)
                 .resolve(new ArtifactKey("biz.aQute.bnd", "biz.aQute.bnd.gradle", "pom", "", "SYSTEM"))
@@ -124,7 +115,7 @@ class InstalledArtifactsLoaderTests {
         Files.copy(poms.resolve(PACKAGE).resolve("biz.aQute.bnd.gradle.pom"),
                 jppPoms.resolve("JPP." + PACKAGE + "-biz.aQute.bnd.gradle.pom"));
 
-        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(), true, jppPoms, temp.resolve("java"));
+        Injector injector = install(List.of(), true, jppPoms, temp.resolve("java"));
 
         assertEquals(java.resolve("biz.aQute.bnd.gradle.jar"), injector.getInstance(MetadataIndex.class)
                 .resolve(ArtifactKey.jar("biz.aQute.bnd", "biz.aQute.bnd.gradle", "SYSTEM"))
@@ -140,13 +131,25 @@ class InstalledArtifactsLoaderTests {
                 + "<version>9.9</version><path>/usr/share/java/bnd-from-metadata.jar</path>"
                 + "</artifact></artifacts></metadata>");
 
-        injector.getInstance(InstalledArtifactsLoader.class).load(List.of(metadata), true, poms, temp.resolve("java"));
+        Injector injector = install(List.of(metadata), true, poms, temp.resolve("java"));
         MetadataIndex index = injector.getInstance(MetadataIndex.class);
 
         assertEquals("9.9", index.resolve(ArtifactKey.jar("biz.aQute.bnd", "biz.aQute.bnd.gradle", "SYSTEM"))
                 .orElseThrow().getVersion());
-        assertTrue(index.resolve(ArtifactKey.jar("biz.aQute.bnd.builder", "biz.aQute.bnd.builder.gradle.plugin", "SYSTEM"))
-                .isEmpty(), "a marker is POM-only and has no jar");
+        ArtifactKey marker = ArtifactKey.jar("biz.aQute.bnd.builder", "biz.aQute.bnd.builder.gradle.plugin", "SYSTEM");
+        assertTrue(index.resolve(marker).isEmpty(), "a marker is POM-only and has no jar");
+    }
+
+    private static Injector install(List<Path> metadata, boolean ignoreDuplicates, Path pomsRoot, Path javaRoot) {
+        return Guice.createInjector(
+                new MetadataModule(new InstalledLayout(metadata, ignoreDuplicates, pomsRoot, javaRoot)),
+                new ParsersModule(), new MavenModule(),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(mock(Logger.class));
+                    }
+                });
     }
 
     private Set<String> resolve(IvyRepository repository, String notation) {
@@ -162,7 +165,7 @@ class InstalledArtifactsLoaderTests {
         return project.getConfigurations().detachedConfiguration(project.getDependencies().create(notation))
                 .resolve().stream()
                 .map(File::toPath)
-                .map(InstalledArtifactsLoaderTests::realName)
+                .map(InstalledIndexTests::realName)
                 .collect(Collectors.toSet());
     }
 

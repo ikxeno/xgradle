@@ -15,22 +15,15 @@
  */
 package unittests.metadata;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 
-import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.IvyRepository;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -63,20 +56,15 @@ class IvyRepositoryGeneratorTests {
     @TempDir
     Path temp;
 
-    private MetadataIndex index;
     private IvyRepositoryGenerator generator;
 
-    @BeforeEach
-    void setUp() {
-        Injector injector = Guice.createInjector(new MetadataModule(), new AbstractModule() {
-            @Override
-            protected void configure() {
-                bind(Logger.class).toInstance(mock(Logger.class));
-                bind(PomParser.class).toInstance(mock(PomParser.class));
-            }
-        });
-        index = injector.getInstance(MetadataIndex.class);
-        generator = injector.getInstance(IvyRepositoryGenerator.class);
+    private void load(List<Path> metadata) {
+        load(metadata, true);
+    }
+
+    private void load(List<Path> metadata, boolean ignoreDuplicates) {
+        generator = Installations.injector(Installations.metadataOnly(metadata, ignoreDuplicates), mock(Logger.class))
+                .getInstance(IvyRepositoryGenerator.class);
     }
 
     @Test
@@ -99,7 +87,7 @@ class IvyRepositoryGeneratorTests {
         Files.writeString(jars.resolve("lib.jar"), "lib");
         Files.writeString(jars.resolve("extra.jar"), "extra");
 
-        index.build(List.of(metadata));
+        load(List.of(metadata));
         IvyRepository repository = generator.generate(temp.resolve("cache"));
 
         assertEquals(Set.of("app.jar", "lib.jar"), resolve(repository, "org.example:app:2.0"),
@@ -122,7 +110,7 @@ class IvyRepositoryGeneratorTests {
                         + "<version>7</version><path>" + jars.resolve("bom.pom") + "</path></artifact>"
                         + artifact("org.example", "lib", "1.5", jars.resolve("lib.jar"), "")));
         Files.writeString(jars.resolve("lib.jar"), "lib");
-        index.build(List.of(metadata));
+        load(List.of(metadata));
         IvyRepository repository = generator.generate(temp.resolve("cache"));
 
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("platform").toFile()).build();
@@ -143,7 +131,7 @@ class IvyRepositoryGeneratorTests {
     @Test
     @DisplayName("writes descriptors for real ALT metadata")
     void writesDescriptorsForAltMetadata() throws IOException, URISyntaxException {
-        index.build(List.of(Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI())));
+        load(List.of(Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI())));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
 
@@ -168,7 +156,7 @@ class IvyRepositoryGeneratorTests {
                         + "<path>" + temp.resolve("a.jar") + "</path></artifact>"
                         + "<artifact><groupId>g</groupId><artifactId>a</artifactId><extension>zip</extension>"
                         + "<version>1</version><path>" + temp.resolve("a.zip") + "</path></artifact>"));
-        index.build(List.of(metadata));
+        load(List.of(metadata));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
         String descriptor = Files.readString(root.resolve("g/a/1/ivy.xml"));
@@ -187,7 +175,7 @@ class IvyRepositoryGeneratorTests {
                 artifact("g", "app", "1", temp.resolve("app.jar"),
                         dependency("g", "lib", "1.0", false) + dependency("g", "other-lib", "9", false))
                         + artifact("g", "other-lib", "3", temp.resolve("other.jar"), "")));
-        index.build(List.of(metadata));
+        load(List.of(metadata));
 
         Path root = generator.generate(temp.resolve("cache")).getRoot();
         String descriptor = Files.readString(root.resolve("g/app/1/ivy.xml"));
@@ -200,7 +188,7 @@ class IvyRepositoryGeneratorTests {
     @DisplayName("reuses the repository for unchanged metadata")
     void reusesRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
-        index.build(List.of(metadata));
+        load(List.of(metadata));
 
         Path first = generator.generate(temp.resolve("cache")).getRoot();
         Files.writeString(first.resolve("marker"), "kept");
@@ -217,10 +205,9 @@ class IvyRepositoryGeneratorTests {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
         Files.writeString(metadata.resolve("b.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("b.jar"), "")));
 
-        index.build(List.of(metadata), true);
+        load(List.of(metadata), true);
         Path ignoring = generator.generate(temp.resolve("cache")).getRoot();
-        setUp();
-        index.build(List.of(metadata), false);
+        load(List.of(metadata), false);
         Path keeping = generator.generate(temp.resolve("cache")).getRoot();
 
         assertNotEquals(ignoring, keeping);
@@ -242,7 +229,7 @@ class IvyRepositoryGeneratorTests {
         Files.setLastModifiedTime(deadTmp, weekAgo);
 
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
-        index.build(List.of(metadata));
+        load(List.of(metadata));
         Path current = generator.generate(cache).getRoot();
 
         try (java.util.stream.Stream<Path> entries = Files.list(cache)) {
@@ -254,13 +241,12 @@ class IvyRepositoryGeneratorTests {
     @DisplayName("replaces a leftover repository directory without the complete marker")
     void replacesIncompleteRepository(@TempDir Path metadata) throws IOException {
         Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
-        index.build(List.of(metadata));
+        load(List.of(metadata));
         Path root = generator.generate(temp.resolve("cache")).getRoot();
         Files.delete(root.resolve(".complete"));
         Files.writeString(root.resolve("junk"), "left by a crashed build");
 
-        setUp();
-        index.build(List.of(metadata));
+        load(List.of(metadata));
         Path regenerated = generator.generate(temp.resolve("cache")).getRoot();
 
         assertEquals(root, regenerated);

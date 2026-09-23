@@ -18,10 +18,12 @@ package unittests.maven;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.interfaces.parsers.PomParser;
+import unittests.metadata.Installations;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
@@ -83,7 +85,8 @@ class PomHierarchyLoaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
+                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                                .toInstance(mock(MetadataIndex.class));
                         bind(PomFinder.class).toInstance(pomFinder);
                     }
                 })
@@ -114,14 +117,16 @@ class PomHierarchyLoaderTests {
                 + "<compatVersions><version>1</version></compatVersions></artifact>"
                 + "</artifacts></metadata>");
 
-        Injector injector = Guice.createInjector(new MavenModule(), new MetadataModule(), new AbstractModule() {
-            @Override
-            protected void configure() {
-                bind(Logger.class).toInstance(logger);
-                bind(PomParser.class).toInstance(mock(PomParser.class));
-            }
-        });
-        injector.getInstance(MetadataIndex.class).build(List.of(metadata));
+        Injector injector = Guice.createInjector(
+                new MavenModule(),
+                new MetadataModule(Installations.metadataOnly(List.of(metadata), true)),
+                new AbstractModule() {
+                    @Override
+                    protected void configure() {
+                        bind(Logger.class).toInstance(logger);
+                        bind(PomParser.class).toInstance(mock(PomParser.class));
+                    }
+                });
 
         List<Model> hierarchy = injector.getInstance(PomHierarchyLoader.class).loadHierarchy(child);
 

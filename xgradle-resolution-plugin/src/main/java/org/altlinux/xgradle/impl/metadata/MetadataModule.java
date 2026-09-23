@@ -16,26 +16,43 @@
 package org.altlinux.xgradle.impl.metadata;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 
-import org.altlinux.xgradle.interfaces.metadata.InstalledArtifactsLoader;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
 
 /**
- * Guice module for XMvn metadata bindings.
+ * Guice module for XMvn metadata bindings. The indexes are built once, on
+ * first use, from the given layout.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 public final class MetadataModule extends AbstractModule {
 
+    private final InstalledLayout layout;
+
+    public MetadataModule(InstalledLayout layout) {
+        this.layout = layout;
+    }
+
     @Override
     protected void configure() {
+        bind(InstalledLayout.class).toInstance(layout);
         bind(MetadataReader.class).to(DefaultMetadataReader.class);
-        bind(MetadataIndex.class).to(DefaultMetadataIndex.class);
+        bind(MetadataIndex.class).toProvider(InstalledIndexProvider.class).in(Singleton.class);
         bind(IvyRepositoryGenerator.class).to(DefaultIvyRepositoryGenerator.class);
         bind(PomArtifactReader.class).to(DefaultPomArtifactReader.class);
-        bind(InstalledArtifactsLoader.class).to(DefaultInstalledArtifactsLoader.class);
+    }
+
+    @Provides
+    @Singleton
+    @Named(MetadataIndex.XMVN_METADATA)
+    MetadataIndex xmvnIndex(MetadataReader reader) {
+        return new DefaultMetadataIndex(reader.read(layout.getMetadataLocations()), layout.isIgnoreDuplicateMetadata());
     }
 }

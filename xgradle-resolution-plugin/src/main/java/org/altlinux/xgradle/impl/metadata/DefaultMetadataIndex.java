@@ -15,17 +15,11 @@
  */
 package org.altlinux.xgradle.impl.metadata;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 
-import org.gradle.api.logging.Logger;
-
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,34 +35,24 @@ import java.util.Set;
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-@Singleton
 final class DefaultMetadataIndex implements MetadataIndex {
 
-    private final MetadataReader reader;
-    private final Logger logger;
+    private final List<XmvnArtifact> artifacts;
+    private final Map<ArtifactKey, XmvnArtifact> byKey;
+    private final List<String> conflicts = new ArrayList<>();
 
-    private List<XmvnArtifact> artifacts = List.of();
-    private Map<ArtifactKey, XmvnArtifact> byKey = Map.of();
-
-    @Inject
-    DefaultMetadataIndex(MetadataReader reader, Logger logger) {
-        this.reader = reader;
-        this.logger = logger;
-    }
-
-    @Override
-    public void build(List<Path> locations, boolean ignoreDuplicates) {
-        load(reader.read(locations), ignoreDuplicates);
-    }
-
-    @Override
-    public void load(List<XmvnArtifact> read, boolean ignoreDuplicates) {
+    /**
+     * Indexes the artifacts in the given order.
+     *
+     * @param ignoreDuplicates XMvn's {@code ignoreDuplicateMetadata}: drop a key two
+     *                         artifacts claim instead of letting the later one win
+     */
+    DefaultMetadataIndex(List<XmvnArtifact> artifacts, boolean ignoreDuplicates) {
         Map<ArtifactKey, XmvnArtifact> index = new LinkedHashMap<>();
-        read.forEach(artifact -> add(index, artifact, ignoreDuplicates));
+        artifacts.forEach(artifact -> add(index, artifact, ignoreDuplicates));
 
-        artifacts = List.copyOf(read);
-        byKey = Collections.unmodifiableMap(index);
-        logger.info("Indexed {} installed artifacts", artifacts.size());
+        this.artifacts = List.copyOf(artifacts);
+        this.byKey = Collections.unmodifiableMap(index);
     }
 
     /**
@@ -90,16 +74,23 @@ final class DefaultMetadataIndex implements MetadataIndex {
                     duplicates.add(key);
                     if (ignoreDuplicates) {
                         index.remove(key);
-                        logger.warn("Ignoring XMvn metadata for {}: it is provided by both {} and {}",
-                                key, existing.getMetadataFile(), artifact.getMetadataFile());
+                        conflicts.add("Ignoring XMvn metadata for " + key + ": it is provided by both "
+                                + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
                     } else {
-                        logger.warn("Duplicate XMvn metadata for {}: {} and {}",
-                                key, existing.getMetadataFile(), artifact.getMetadataFile());
+                        conflicts.add("Duplicate XMvn metadata for " + key + ": "
+                                + existing.getMetadataFile() + " and " + artifact.getMetadataFile());
                         if (existing.getNamespace().isEmpty() || !artifact.getNamespace().isEmpty()) {
                             index.put(key, artifact);
                         }
                     }
                 });
+    }
+
+    /**
+     * Keys two artifacts claimed, described for a warning.
+     */
+    List<String> conflicts() {
+        return Collections.unmodifiableList(conflicts);
     }
 
     @Override

@@ -16,13 +16,16 @@
 package org.altlinux.xgradle.impl.metadata;
 
 import com.google.inject.Inject;
+import com.google.inject.Provider;
+import com.google.inject.name.Named;
 
 import org.altlinux.xgradle.impl.model.ArtifactKey;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
-import org.altlinux.xgradle.interfaces.metadata.InstalledArtifactsLoader;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
+
+import org.gradle.api.logging.Logger;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -32,46 +35,55 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * XMvn metadata is the primary source. A POM installed without metadata, as
- * xgradle-cli installs Gradle-built packages, adds a module only when no
- * metadata entry or alias already provides its groupId:artifactId.
+ * Builds the index of everything installed. XMvn metadata is the primary
+ * source. A POM installed without metadata, as xgradle-cli installs
+ * Gradle-built packages, adds a module only when no metadata entry or alias
+ * already provides its groupId:artifactId.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
-final class DefaultInstalledArtifactsLoader implements InstalledArtifactsLoader {
+final class InstalledIndexProvider implements Provider<MetadataIndex> {
 
-    private final MetadataReader metadataReader;
+    private final InstalledLayout layout;
+    private final MetadataIndex xmvnIndex;
     private final PomArtifactReader pomReader;
-    private final MetadataIndex index;
+    private final Logger logger;
 
     @Inject
-    DefaultInstalledArtifactsLoader(MetadataReader metadataReader, PomArtifactReader pomReader, MetadataIndex index) {
-        this.metadataReader = metadataReader;
+    InstalledIndexProvider(
+            InstalledLayout layout,
+            @Named(MetadataIndex.XMVN_METADATA) MetadataIndex xmvnIndex,
+            PomArtifactReader pomReader,
+            Logger logger
+    ) {
+        this.layout = layout;
+        this.xmvnIndex = xmvnIndex;
         this.pomReader = pomReader;
-        this.index = index;
+        this.logger = logger;
     }
 
     @Override
-    public void load(List<Path> metadataLocations, boolean ignoreDuplicates, Path pomsRoot, Path javaRoot) {
-        List<XmvnArtifact> fromMetadata = metadataReader.read(metadataLocations);
-        // Loaded first so that parent POMs of the remaining POMs are found through the metadata.
-        index.load(fromMetadata, ignoreDuplicates);
-
+    public MetadataIndex get() {
+        List<XmvnArtifact> fromMetadata = xmvnIndex.artifacts();
         Set<Path> describedFiles = fromMetadata.stream()
                 .map(XmvnArtifact::getPath)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         Set<String> describedModules = fromMetadata.stream()
                 .flatMap(artifact -> artifact.lookupKeys().stream())
-                .map(DefaultInstalledArtifactsLoader::module)
+                .map(InstalledIndexProvider::module)
                 .collect(Collectors.toSet());
 
-        List<XmvnArtifact> fromPoms = pomReader.read(pomsRoot, javaRoot, describedFiles).stream()
+        List<XmvnArtifact> fromPoms = pomReader.read(layout.getPomsRoot(), layout.getJavaRoot(), describedFiles).stream()
                 .filter(artifact -> !describedModules.contains(artifact.getGroupId() + ":" + artifact.getArtifactId()))
                 .collect(Collectors.toList());
 
-        index.load(Stream.concat(fromMetadata.stream(), fromPoms.stream()).collect(Collectors.toList()),
-                ignoreDuplicates);
+        DefaultMetadataIndex index = new DefaultMetadataIndex(
+                Stream.concat(fromMetadata.stream(), fromPoms.stream()).collect(Collectors.toList()),
+                layout.isIgnoreDuplicateMetadata());
+        index.conflicts().forEach(logger::warn);
+        logger.info("Indexed {} installed artifacts", index.artifacts().size());
+        return index;
     }
 
     private static String module(ArtifactKey key) {

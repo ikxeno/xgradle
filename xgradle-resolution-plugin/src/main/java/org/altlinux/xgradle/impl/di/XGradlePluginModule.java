@@ -20,6 +20,7 @@ import com.google.inject.AbstractModule;
 import org.altlinux.xgradle.impl.collectors.CollectorsModule;
 import org.altlinux.xgradle.impl.handlers.HandlersModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.managers.ManagersModule;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
@@ -36,6 +37,12 @@ import org.altlinux.xgradle.impl.utils.logging.LoggingModule;
 
 public final class XGradlePluginModule extends AbstractModule {
 
+    private final InstalledLayout layout;
+
+    public XGradlePluginModule(InstalledLayout layout) {
+        this.layout = layout;
+    }
+
     @Override
     protected void configure() {
         install(new LoggingModule());
@@ -45,7 +52,7 @@ public final class XGradlePluginModule extends AbstractModule {
 
         install(new ParsersModule());
 
-        install(new MetadataModule());
+        install(new MetadataModule(layout));
 
         install(new ResolversModule());
 

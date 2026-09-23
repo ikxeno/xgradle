@@ -21,10 +21,10 @@ import com.google.inject.Injector;
 
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
+import unittests.metadata.Installations;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.interfaces.maven.PomFinder;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
 
 import org.gradle.api.logging.Logger;
 
@@ -53,15 +53,15 @@ class PomFinderTests {
 
     @BeforeEach
     void setUp() throws URISyntaxException {
+        Path fixtures = Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI());
         Injector injector = Guice.createInjector(
-                new MetadataModule(), new MavenModule(), new ParsersModule(),                new AbstractModule() {
+                new MetadataModule(Installations.metadataOnly(List.of(fixtures), true)),
+                new MavenModule(), new ParsersModule(), new AbstractModule() {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(mock(Logger.class));
                     }
                 });
-        injector.getInstance(MetadataIndex.class).build(List.of(
-                Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI())));
         finder = injector.getInstance(PomFinder.class);
     }
 

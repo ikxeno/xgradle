@@ -26,6 +26,7 @@ import org.altlinux.xgradle.impl.model.MavenCoordinate;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
 import org.altlinux.xgradle.impl.utils.logging.LoggingModule;
 
+import unittests.metadata.Installations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,7 @@ public class TestDependenciesBlockParser {
                 new LoggingModule(),
                 new CollectorsModule(),
                 new MavenModule(),
-                new MetadataModule(),
+                new MetadataModule(Installations.metadataOnly(List.of(), true)),
                 new ParsersModule()
         );
         pomParser = injector.getInstance(PomParser.class);

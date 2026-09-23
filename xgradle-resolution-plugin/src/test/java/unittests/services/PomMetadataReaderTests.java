@@ -18,6 +18,7 @@ package unittests.services;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
@@ -98,7 +99,8 @@ class PomMetadataReaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(MetadataIndex.class).toInstance(mock(MetadataIndex.class));
+                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                                .toInstance(mock(MetadataIndex.class));
                         bind(VersionScanner.class).toInstance(versionScanner);
                         bind(PomFinder.class).toInstance(pomFinder);
                     }

@@ -16,6 +16,8 @@
 package org.altlinux.xgradle.impl.maven;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
+
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
@@ -51,8 +53,12 @@ final class MavenPomHierarchyLoader implements PomHierarchyLoader {
     private final MetadataIndex index;
     private final Logger logger;
 
+    /**
+     * @param index artifacts described by XMvn metadata; parents of POMs installed
+     *              without metadata are found next to them
+     */
     @Inject
-    MavenPomHierarchyLoader(MetadataIndex index, Logger logger) {
+    MavenPomHierarchyLoader(@Named(MetadataIndex.XMVN_METADATA) MetadataIndex index, Logger logger) {
         this.index = index;
         this.logger = logger;
     }

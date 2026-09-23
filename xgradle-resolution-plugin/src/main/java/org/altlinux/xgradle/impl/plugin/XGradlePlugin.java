@@ -19,9 +19,9 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
-import org.altlinux.xgradle.interfaces.metadata.InstalledArtifactsLoader;
 import org.altlinux.xgradle.impl.extensions.SystemDepsExtension;
 import org.altlinux.xgradle.impl.metadata.XmvnConfiguration;
+import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.di.XGradlePluginModule;
 import org.altlinux.xgradle.impl.utils.config.XGradleConfig;
 
@@ -52,15 +52,13 @@ public final class XGradlePlugin implements Plugin<Gradle> {
             LogoPrinter.printCenteredBanner();
         }
 
-        Injector injector = Guice.createInjector(
-                new XGradlePluginModule()
-        );
         XmvnConfiguration xmvn = XmvnConfiguration.load(gradle.getStartParameter().getCurrentDir().toPath());
-        injector.getInstance(InstalledArtifactsLoader.class).load(
+        InstalledLayout layout = new InstalledLayout(
                 SystemDepsExtension.getMetadataPaths(xmvn),
                 xmvn.isIgnoreDuplicateMetadata(),
                 SystemDepsExtension.getPomsDir(),
                 SystemDepsExtension.getJavaDir());
+        Injector injector = Guice.createInjector(new XGradlePluginModule(layout));
 
         PluginsDependenciesHandler plugins = injector.getInstance(PluginsDependenciesHandler.class);
         ProjectDependenciesHandler dependencies = injector.getInstance(ProjectDependenciesHandler.class);

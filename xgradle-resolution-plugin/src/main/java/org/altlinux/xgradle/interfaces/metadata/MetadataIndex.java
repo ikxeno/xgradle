@@ -18,38 +18,24 @@ package org.altlinux.xgradle.interfaces.metadata;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Index of installed artifacts built from XMvn metadata, resolving
- * artifacts the same way the XMvn resolver does.
+ * Immutable index of installed artifacts, resolving them the same way the
+ * XMvn resolver does.
  *
  * @author Ivan Khanas <xeno@altlinux.org>
  */
 public interface MetadataIndex {
 
     /**
-     * Reads the metadata under the given locations and replaces the index content.
-     *
-     * @param ignoreDuplicates XMvn's {@code ignoreDuplicateMetadata}: drop a key two
-     *                         artifacts claim instead of letting the later one win
+     * Name of the binding that holds only the artifacts described by XMvn metadata,
+     * without POMs installed without metadata. Parent POM lookup uses it, since the
+     * full index is built by reading those POMs.
      */
-    void build(List<Path> locations, boolean ignoreDuplicates);
-
-    /**
-     * Replaces the index content with the given artifacts, in the given order.
-     */
-    void load(List<XmvnArtifact> artifacts, boolean ignoreDuplicates);
-
-    /**
-     * Builds the index with XMvn's default, {@code ignoreDuplicateMetadata=true}.
-     */
-    default void build(List<Path> locations) {
-        build(locations, true);
-    }
+    String XMVN_METADATA = "xmvnMetadata";
 
     /**
      * Resolves a key like XMvn: an exact compat version match first,

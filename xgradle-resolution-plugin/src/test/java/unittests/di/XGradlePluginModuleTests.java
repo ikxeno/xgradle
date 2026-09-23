@@ -21,6 +21,10 @@ import org.altlinux.xgradle.impl.di.XGradlePluginModule;
 import org.altlinux.xgradle.interfaces.handlers.PluginsDependenciesHandler;
 import org.altlinux.xgradle.interfaces.handlers.ProjectDependenciesHandler;
 import org.altlinux.xgradle.interfaces.resolution.SystemDependencyResolution;
+import unittests.metadata.Installations;
+
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +40,7 @@ class XGradlePluginModuleTests {
     @Test
     @DisplayName("Creates injector and resolves top-level handlers")
     void createsInjectorAndResolvesTopLevelHandlers() {
-        Injector injector = Guice.createInjector(new XGradlePluginModule());
+        Injector injector = Guice.createInjector(new XGradlePluginModule(Installations.metadataOnly(List.of(), true)));
 
         assertAll(
                 () -> assertNotNull(injector.getInstance(SystemDependencyResolution.class)),

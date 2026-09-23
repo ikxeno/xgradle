@@ -15,16 +15,12 @@
  */
 package unittests.metadata;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 
-import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
@@ -45,8 +41,8 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -66,21 +62,13 @@ class MetadataIndexTests {
     @BeforeEach
     void setUp() throws URISyntaxException {
         logger = mock(Logger.class);
-        Injector injector = Guice.createInjector(new MetadataModule(), new AbstractModule() {
-            @Override
-            protected void configure() {
-                bind(Logger.class).toInstance(logger);
-                bind(PomParser.class).toInstance(mock(PomParser.class));
-            }
-        });
-        index = injector.getInstance(MetadataIndex.class);
         fixtures = Path.of(Objects.requireNonNull(getClass().getResource("/xmvn-metadata")).toURI());
     }
 
     @Test
     @DisplayName("resolves any requested version of a plain artifact to the installed one")
     void resolvesSystemVersion() {
-        index.build(List.of(fixtures));
+        index = build(List.of(fixtures), true);
 
         XmvnArtifact guava = index.resolve(ArtifactKey.jar("com.google.guava", "guava", "31.0-jre")).orElseThrow();
 
@@ -96,7 +84,7 @@ class MetadataIndexTests {
     @Test
     @DisplayName("keeps the POM of a module apart from its jar")
     void separatesPomFromJar() {
-        index.build(List.of(fixtures));
+        index = build(List.of(fixtures), true);
 
         ArtifactKey pom = new ArtifactKey("com.google.guava", "guava-parent", "pom", "", "SYSTEM");
 
@@ -108,7 +96,7 @@ class MetadataIndexTests {
     @Test
     @DisplayName("resolves compat artifacts only by their compat versions")
     void resolvesCompatVersions() {
-        index.build(List.of(fixtures));
+        index = build(List.of(fixtures), true);
 
         XmvnArtifact model = index.resolve(ArtifactKey.jar("org.apache.maven", "maven-model", "2.0.7")).orElseThrow();
 
@@ -121,7 +109,7 @@ class MetadataIndexTests {
     @Test
     @DisplayName("resolves aliases to the aliased artifact")
     void resolvesAliases() {
-        index.build(List.of(fixtures));
+        index = build(List.of(fixtures), true);
 
         XmvnArtifact viaAlias = index.resolve(ArtifactKey.jar("org.hamcrest", "hamcrest-core", "1.3")).orElseThrow();
 
@@ -132,7 +120,7 @@ class MetadataIndexTests {
     @Test
     @DisplayName("reads optional dependencies and classified artifacts")
     void readsOptionalAndClassifier() {
-        index.build(List.of(fixtures));
+        index = build(List.of(fixtures), true);
 
         XmvnDependency plexusXml = index.resolve(ArtifactKey.jar("org.codehaus.plexus", "plexus-utils", "SYSTEM"))
                 .orElseThrow().getDependencies().get(0);
@@ -151,7 +139,7 @@ class MetadataIndexTests {
             out.write(Files.readAllBytes(fixtures.resolve("guava-guava.xml")));
         }
 
-        index.build(List.of(dir));
+        index = build(List.of(dir), true);
 
         assertTrue(index.resolve(ArtifactKey.jar("com.google.guava", "guava", "SYSTEM")).isPresent());
     }
@@ -162,10 +150,10 @@ class MetadataIndexTests {
         Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
         Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
 
-        index.build(List.of(dir));
+        index = build(List.of(dir), true);
 
         assertTrue(index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).isEmpty());
-        verify(logger).warn(anyString(), any(Object.class), any(Object.class), any(Object.class));
+        verify(logger).warn(contains("Ignoring XMvn metadata for g:a:jar:SYSTEM"));
     }
 
     @Test
@@ -175,7 +163,7 @@ class MetadataIndexTests {
         Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
         Files.writeString(dir.resolve("c.xml"), metadata("/usr/share/java/c.jar"));
 
-        index.build(List.of(dir));
+        index = build(List.of(dir), true);
 
         assertEquals(Path.of("/usr/share/java/c.jar"),
                 index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).orElseThrow().getPath());
@@ -187,7 +175,7 @@ class MetadataIndexTests {
         Files.writeString(dir.resolve("b.xml"), metadata("/usr/share/java/b.jar"));
         Files.writeString(dir.resolve("a.xml"), metadata("/usr/share/java/a.jar"));
 
-        index.build(List.of(dir), false);
+        index = build(List.of(dir), false);
 
         assertEquals(Path.of("/usr/share/java/b.jar"),
                 index.resolve(ArtifactKey.jar("g", "a", "SYSTEM")).orElseThrow().getPath());
@@ -196,7 +184,9 @@ class MetadataIndexTests {
     @Test
     @DisplayName("fails on a missing location instead of skipping it")
     void failsOnMissingLocation(@TempDir Path dir) {
-        assertThrows(GradleException.class, () -> index.build(List.of(dir.resolve("missing"))));
+        ProvisionException e = assertThrows(ProvisionException.class,
+                () -> build(List.of(dir.resolve("missing")), true));
+        assertInstanceOf(GradleException.class, e.getCause());
     }
 
     @Test
@@ -207,11 +197,16 @@ class MetadataIndexTests {
         Files.writeString(dir.resolve("incomplete.xml"),
                 "<metadata><artifacts><artifact><groupId>g</groupId></artifact></artifacts></metadata>");
 
-        index.build(List.of(dir));
+        index = build(List.of(dir), true);
 
         assertEquals(1, index.artifacts().size());
         verify(logger).warn(anyString(), eq(dir.resolve("broken.xml")), anyString());
         verify(logger).warn(anyString(), eq(dir.resolve("incomplete.xml")), anyString());
+    }
+
+    private MetadataIndex build(List<Path> locations, boolean ignoreDuplicates) {
+        return Installations.injector(Installations.metadataOnly(locations, ignoreDuplicates), logger)
+                .getInstance(MetadataIndex.class);
     }
 
     private static String metadata(String path) {

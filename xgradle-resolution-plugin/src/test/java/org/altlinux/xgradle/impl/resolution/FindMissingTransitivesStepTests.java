@@ -15,17 +15,13 @@
  */
 package org.altlinux.xgradle.impl.resolution;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.MavenCoordinate;
-import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
+
+import unittests.metadata.Installations;
 
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.logging.Logger;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,14 +49,7 @@ class FindMissingTransitivesStepTests {
                 + artifact("app", dependency("lib", false) + dependency("absent", false) + dependency("extra", true))
                 + artifact("lib", dependency("gone", false))
                 + "</artifacts></metadata>");
-        Injector injector = Guice.createInjector(new MetadataModule(), new AbstractModule() {
-            @Override
-            protected void configure() {
-                bind(Logger.class).toInstance(mock(Logger.class));
-                bind(PomParser.class).toInstance(mock(PomParser.class));
-            }
-        });
-        injector.getInstance(MetadataIndex.class).build(List.of(metadata));
+        Injector injector = Installations.injector(List.of(metadata));
 
         ResolutionContext ctx = new ResolutionContext(mock(Gradle.class));
         ctx.putSystemArtifact("g:app", MavenCoordinate.builder().groupId("g").artifactId("app").version("1").build());

@@ -15,21 +15,17 @@
  */
 package unittests.resolvers;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-import org.altlinux.xgradle.impl.metadata.MetadataModule;
 import org.altlinux.xgradle.impl.model.IvyRepository;
+import unittests.metadata.Installations;
 import org.altlinux.xgradle.impl.resolvers.DefaultDependencySubstitutor;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
-import org.altlinux.xgradle.interfaces.parsers.PomParser;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.invocation.Gradle;
-import org.gradle.api.logging.Logger;
 import org.gradle.testfixtures.ProjectBuilder;
 
 import org.junit.jupiter.api.DisplayName;
@@ -74,15 +70,8 @@ class DependencySubstitutorTests {
         Files.writeString(jars.resolve("lib.jar"), "lib");
         Files.writeString(jars.resolve("old.jar"), "old");
 
-        Injector injector = Guice.createInjector(new MetadataModule(), new AbstractModule() {
-            @Override
-            protected void configure() {
-                bind(Logger.class).toInstance(mock(Logger.class));
-                bind(PomParser.class).toInstance(mock(PomParser.class));
-            }
-        });
+        Injector injector = Installations.injector(List.of(metadata));
         MetadataIndex index = injector.getInstance(MetadataIndex.class);
-        index.build(List.of(metadata));
         IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
 
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
