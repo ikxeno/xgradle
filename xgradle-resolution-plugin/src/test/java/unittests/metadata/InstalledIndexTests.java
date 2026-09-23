@@ -172,6 +172,20 @@ class InstalledIndexTests {
     }
 
     @Test
+    @DisplayName("keeps the first of two POMs installed with the same coordinates")
+    void keepsFirstOfDuplicatePoms() throws IOException {
+        Path pomDir = Files.createDirectories(temp.resolve("duplicate-poms"));
+        String pom = "<project><modelVersion>4.0.0</modelVersion>"
+                + "<groupId>g</groupId><artifactId>twice</artifactId><version>%s</version></project>";
+        Files.writeString(pomDir.resolve("JPP-twice.pom"), String.format(pom, "1"));
+        Files.writeString(pomDir.resolve("twice.pom"), String.format(pom, "2"));
+
+        MetadataIndex index = install(List.of(), true, pomDir, temp.resolve("java")).getInstance(MetadataIndex.class);
+
+        assertEquals("1", index.resolveModule("g", "twice", "SYSTEM").orElseThrow().getVersion());
+    }
+
+    @Test
     @DisplayName("lets XMvn metadata win over a POM for the same module")
     void metadataWins() throws IOException {
         Path metadata = Files.createDirectories(temp.resolve("metadata"));

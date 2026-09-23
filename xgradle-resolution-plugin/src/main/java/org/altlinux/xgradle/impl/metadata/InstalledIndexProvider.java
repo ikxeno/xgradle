@@ -28,7 +28,9 @@ import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
 import org.gradle.api.logging.Logger;
 
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -74,9 +76,9 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
                 .map(InstalledIndexProvider::module)
                 .collect(Collectors.toSet());
 
-        List<XmvnArtifact> fromPoms = pomReader.read(layout.getPomsRoot(), layout.getJavaRoot(), describedFiles).stream()
-                .filter(artifact -> !describedModules.contains(artifact.getGroupId() + ":" + artifact.getArtifactId()))
-                .collect(Collectors.toList());
+        List<XmvnArtifact> fromPoms = firstOfEachKey(
+                pomReader.read(layout.getPomsRoot(), layout.getJavaRoot(), describedFiles).stream()
+                        .filter(artifact -> !describedModules.contains(artifact.getGroupId() + ":" + artifact.getArtifactId())));
 
         DefaultMetadataIndex index = new DefaultMetadataIndex(
                 Stream.concat(fromMetadata.stream(), fromPoms.stream()).collect(Collectors.toList()),
@@ -84,6 +86,23 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
         index.conflicts().forEach(logger::warn);
         logger.info("Indexed {} installed artifacts", index.artifacts().size());
         return index;
+    }
+
+    /**
+     * XMvn has no rule for POMs it never sees, and dropping both claims would lose the
+     * module, so of two POMs with the same coordinates the first in path order is kept.
+     */
+    private List<XmvnArtifact> firstOfEachKey(Stream<XmvnArtifact> artifacts) {
+        Map<ArtifactKey, XmvnArtifact> first = new LinkedHashMap<>();
+        artifacts.forEach(artifact -> {
+            ArtifactKey key = artifact.lookupKeys().get(0);
+            XmvnArtifact kept = first.putIfAbsent(key, artifact);
+            if (kept != null) {
+                logger.warn("Ignoring POM {}: {} is already installed by {}",
+                        artifact.getMetadataFile(), key, kept.getMetadataFile());
+            }
+        });
+        return List.copyOf(first.values());
     }
 
     private static String module(ArtifactKey key) {
