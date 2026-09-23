@@ -17,8 +17,7 @@ package org.altlinux.xgradle.interfaces.resolvers;
 
 import org.gradle.api.artifacts.ConfigurationContainer;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 /**
   * Substitutes dependency versions during resolution.
 
@@ -35,8 +34,8 @@ public interface DependencySubstitutor {
     void configure(ConfigurationContainer configurations);
 
     /**
-     * Declared versions {@link #configure} replaces, as log lines keyed by
-     * {@code "group:name|declared|installed"}.
+     * The installed revision {@link #configure} resolves a request to, if it differs
+     * from the requested version.
      */
-    Map<String, String> overrides(Map<String, Set<String>> requestedVersions);
+    Optional<String> replacement(String group, String name, String requestedVersion);
 }

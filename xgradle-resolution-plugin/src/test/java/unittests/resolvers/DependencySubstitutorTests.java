@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -84,7 +84,6 @@ class DependencySubstitutorTests {
 
         DefaultDependencySubstitutor substitutor = new DefaultDependencySubstitutor(index);
         substitutor.configure(project.getConfigurations());
-        Map<String, String> overrides = substitutor.overrides(Map.of("g:lib", Set.of("1.0")));
 
         Set<String> resolved = project.getConfigurations().getByName("deps").getIncoming()
                 .getResolutionResult().getAllComponents().stream()
@@ -94,7 +93,8 @@ class DependencySubstitutorTests {
                 .collect(Collectors.toSet());
 
         assertEquals(Set.of("lib:1.5", "lib-legacy:1.5", "old:1.0"), resolved);
-        assertEquals(Map.of("g:lib|1.0|1.5", "Override version: g:lib:1.0 -> 1.5"), overrides);
+        assertEquals(Optional.of("1.5"), substitutor.replacement("g", "lib", "1.0"));
+        assertEquals(Optional.empty(), substitutor.replacement("g", "lib", "1.5"), "the installed version is kept");
     }
 
     private static String artifact(String artifactId, String version, Path path, String extra) {

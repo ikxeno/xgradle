@@ -22,6 +22,8 @@ import org.altlinux.xgradle.interfaces.resolution.ResolutionStep;
 import org.altlinux.xgradle.interfaces.resolution.Order;
 import org.altlinux.xgradle.interfaces.resolvers.DependencySubstitutor;
 
+import java.util.Objects;
+
 /**
  * Records which declared versions resolve to a different installed revision, for
  * the report. The substitution itself is installed before any script runs.
@@ -48,6 +50,14 @@ final class RecordOverridesStep implements ResolutionStep {
     @Override
     public void execute(ResolutionContext resolutionContext) {
         resolutionContext.getOverrideLogs().clear();
-        resolutionContext.getOverrideLogs().putAll(substitutor.overrides(resolutionContext.getRequestedVersions()));
+        resolutionContext.getRequestedVersions().forEach((module, versions) -> {
+            String[] ga = module.split(":", 2);
+            versions.stream()
+                    .filter(Objects::nonNull)
+                    .forEach(version -> substitutor.replacement(ga[0], ga[1], version)
+                            .ifPresent(revision -> resolutionContext.getOverrideLogs().put(
+                                    module + "|" + version + "|" + revision,
+                                    "Override version: " + module + ":" + version + " -> " + revision)));
+        });
     }
 }
