@@ -274,6 +274,20 @@ class IvyRepositoryGeneratorTests {
         verify(logger, times(1)).warn(startsWith("No installed artifacts found"));
     }
 
+    @Test
+    @DisplayName("leaves the repository readable to other users")
+    void repositoryIsReadableByAll(@TempDir Path metadata) throws IOException {
+        Files.writeString(metadata.resolve("a.xml"), metadataFile(artifact("g", "a", "1", temp.resolve("a.jar"), "")));
+        load(List.of(metadata));
+
+        Path root = generator.generate(temp.resolve("cache")).getRoot();
+
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                Files.getFileAttributeView(root, java.nio.file.attribute.PosixFileAttributeView.class) != null);
+        assertEquals("rwxr-xr-x",
+                java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(root)));
+    }
+
     private Set<String> resolve(IvyRepository repository, String... notations) {
         Project project = ProjectBuilder.builder().withProjectDir(temp.resolve("project").toFile()).build();
         addRepository(project, repository);

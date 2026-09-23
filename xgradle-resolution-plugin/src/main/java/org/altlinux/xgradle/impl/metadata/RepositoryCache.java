@@ -23,6 +23,8 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -84,6 +86,7 @@ final class RepositoryCache {
         Files.createDirectories(directory);
         Path tmp = Files.createTempDirectory(directory, root.getFileName() + ".");
         try {
+            makeReadableByAll(tmp);
             writer.writeTo(tmp);
             Files.createFile(tmp.resolve(COMPLETE_MARKER));
             moveIntoPlace(tmp, root);
@@ -91,6 +94,19 @@ final class RepositoryCache {
             if (Files.exists(tmp)) {
                 deleteRecursively(tmp);
             }
+        }
+    }
+
+    /**
+     * A temporary directory is created private to its owner; the repository it becomes
+     * must stay readable to every user of a shared Gradle user home.
+     * The attribute view is asked for directly: looking up the file store needs a
+     * mount table, and a hasher chroot has none for its /tmp.
+     */
+    private static void makeReadableByAll(Path dir) throws IOException {
+        PosixFileAttributeView view = Files.getFileAttributeView(dir, PosixFileAttributeView.class);
+        if (view != null) {
+            view.setPermissions(PosixFilePermissions.fromString("rwxr-xr-x"));
         }
     }
 
