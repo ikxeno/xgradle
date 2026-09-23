@@ -41,32 +41,35 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "maven-publish")
     apply(plugin = "com.gradleup.shadow")
-    apply(plugin = "checkstyle")
-    apply(plugin = "jacoco")
 
-    configure<CheckstyleExtension> {
-        isIgnoreFailures = false
-        isShowViolations = true
-        maxErrors = 0
-    }
+    if (!gradle.startParameter.isOffline) {
+        apply(plugin = "checkstyle")
+        apply(plugin = "jacoco")
 
-    tasks.withType<Checkstyle>().configureEach {
-        reports {
-            xml.required.set(true)
-            html.required.set(true)
+        configure<CheckstyleExtension> {
+            isIgnoreFailures = false
+            isShowViolations = true
+            maxErrors = 0
         }
-    }
 
-    tasks.register<Checkstyle>("checkstyle") {
-        dependsOn("checkstyleMain", "checkstyleTest")
-    }
+        tasks.withType<Checkstyle>().configureEach {
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
+        }
 
-    tasks.named<JacocoReport>("jacocoTestReport") {
-        dependsOn(tasks.check)
-        reports {
-            xml.required.set(true)
-            html.required.set(true)
-            csv.required.set(false)
+        tasks.register("checkstyle") {
+            dependsOn("checkstyleMain", "checkstyleTest")
+        }
+
+        tasks.named<JacocoReport>("jacocoTestReport") {
+            dependsOn(tasks.check)
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+                csv.required.set(false)
+            }
         }
     }
 
