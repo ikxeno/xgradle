@@ -18,11 +18,11 @@ package org.altlinux.xgradle.impl.metadata;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
 import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.interfaces.metadata.IvyRepositoryGenerator;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.altlinux.xgradle.interfaces.metadata.MetadataReader;
 import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
 import org.altlinux.xgradle.interfaces.metadata.SystemRepository;
@@ -53,7 +53,7 @@ public final class MetadataModule extends AbstractModule {
 
     @Provides
     @Singleton
-    @Named(MetadataIndex.XMVN_METADATA)
+    @XmvnMetadataOnly
     MetadataIndex xmvnIndex(MetadataReader reader) {
         return new DefaultMetadataIndex(reader.read(layout.getMetadataLocations()), layout.isIgnoreDuplicateMetadata());
     }

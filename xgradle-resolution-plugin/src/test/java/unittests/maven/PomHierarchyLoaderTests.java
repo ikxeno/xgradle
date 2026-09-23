@@ -18,7 +18,6 @@ package unittests.maven;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.metadata.MetadataModule;
@@ -29,6 +28,7 @@ import org.altlinux.xgradle.interfaces.maven.PomHierarchyLoader;
 import org.apache.maven.model.Model;
 import org.gradle.api.logging.Logger;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -85,7 +85,7 @@ class PomHierarchyLoaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
                                 .toInstance(mock(MetadataIndex.class));
                         bind(ModuleFinder.class).toInstance(moduleFinder);
                     }
@@ -148,7 +148,7 @@ class PomHierarchyLoaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
                                 .toInstance(mock(MetadataIndex.class));
                         bind(ModuleFinder.class).toInstance(moduleFinder);
                     }

@@ -17,12 +17,12 @@ package org.altlinux.xgradle.impl.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
-import com.google.inject.name.Named;
 
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.InstalledLayout;
 import org.altlinux.xgradle.impl.model.XmvnArtifact;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.altlinux.xgradle.interfaces.metadata.PomArtifactReader;
 
 import org.gradle.api.logging.Logger;
@@ -54,7 +54,7 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
     @Inject
     InstalledIndexProvider(
             InstalledLayout layout,
-            @Named(MetadataIndex.XMVN_METADATA) MetadataIndex xmvnIndex,
+            @XmvnMetadataOnly MetadataIndex xmvnIndex,
             PomArtifactReader pomReader,
             Logger logger
     ) {

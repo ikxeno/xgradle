@@ -34,13 +34,6 @@ import java.util.stream.Stream;
 public interface MetadataIndex {
 
     /**
-     * Name of the binding that holds only the artifacts described by XMvn metadata,
-     * without POMs installed without metadata. Parent POM lookup uses it, since the
-     * full index is built by reading those POMs.
-     */
-    String XMVN_METADATA = "xmvnMetadata";
-
-    /**
      * Resolves a key like XMvn: an exact compat version match first,
      * then the default artifact under {@link ArtifactKey#SYSTEM_VERSION}.
      */

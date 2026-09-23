@@ -18,7 +18,6 @@ package unittests.services;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.altlinux.xgradle.impl.maven.MavenModule;
 import org.altlinux.xgradle.impl.parsers.ParsersModule;
@@ -29,6 +28,7 @@ import org.altlinux.xgradle.interfaces.services.PomMetadataReader;
 import org.altlinux.xgradle.interfaces.services.VersionScanner;
 import org.gradle.api.logging.Logger;
 import org.altlinux.xgradle.interfaces.metadata.MetadataIndex;
+import org.altlinux.xgradle.interfaces.metadata.XmvnMetadataOnly;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -99,7 +99,7 @@ class PomMetadataReaderTests {
                     @Override
                     protected void configure() {
                         bind(Logger.class).toInstance(logger);
-                        bind(MetadataIndex.class).annotatedWith(Names.named(MetadataIndex.XMVN_METADATA))
+                        bind(MetadataIndex.class).annotatedWith(XmvnMetadataOnly.class)
                                 .toInstance(mock(MetadataIndex.class));
                         bind(VersionScanner.class).toInstance(versionScanner);
                         bind(ModuleFinder.class).toInstance(moduleFinder);
