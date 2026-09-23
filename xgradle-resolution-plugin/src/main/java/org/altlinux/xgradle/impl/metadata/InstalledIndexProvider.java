@@ -73,12 +73,12 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
                 .collect(Collectors.toSet());
         Set<String> describedModules = fromMetadata.stream()
                 .flatMap(artifact -> artifact.lookupKeys().stream())
-                .map(InstalledIndexProvider::module)
+                .map(ArtifactKey::module)
                 .collect(Collectors.toSet());
 
         List<XmvnArtifact> fromPoms = firstOfEachKey(
                 pomReader.read(layout.getPomsRoot(), layout.getJavaRoot(), describedFiles).stream()
-                        .filter(artifact -> !describedModules.contains(artifact.getGroupId() + ":" + artifact.getArtifactId())));
+                        .filter(artifact -> !describedModules.contains(artifact.module())));
 
         DefaultMetadataIndex index = new DefaultMetadataIndex(
                 Stream.concat(fromMetadata.stream(), fromPoms.stream()).collect(Collectors.toList()),
@@ -103,9 +103,5 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
             }
         });
         return List.copyOf(first.values());
-    }
-
-    private static String module(ArtifactKey key) {
-        return key.getGroupId() + ":" + key.getArtifactId();
     }
 }

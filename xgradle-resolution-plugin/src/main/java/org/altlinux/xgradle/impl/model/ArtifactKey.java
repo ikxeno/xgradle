@@ -53,6 +53,13 @@ public final class ArtifactKey {
         return new ArtifactKey(groupId, artifactId, DEFAULT_EXTENSION, "", version);
     }
 
+    /**
+     * The module as {@code groupId:artifactId}.
+     */
+    public String module() {
+        return groupId + ":" + artifactId;
+    }
+
     public ArtifactKey withVersion(String newVersion) {
         return new ArtifactKey(groupId, artifactId, extension, classifier, newVersion);
     }

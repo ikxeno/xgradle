@@ -98,7 +98,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
         Map<String, Module> modules = new TreeMap<>();
         index.entries().forEach((key, artifact) -> index.revision(key).ifPresent(rev -> {
             Module module = modules.computeIfAbsent(
-                    key.getGroupId() + ":" + key.getArtifactId() + ":" + rev,
+                    key.module() + ":" + rev,
                     id -> new Module(key.getGroupId(), key.getArtifactId(), rev));
             module.add(key, artifact);
         }));
@@ -292,7 +292,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
             XmvnArtifact source = main != null ? main : pom;
             return source == null
                     ? Stream.empty()
-                    : source.getDependencies().stream().filter(dep -> !dep.isOptional());
+                    : source.requiredDependencies();
         }
     }
 

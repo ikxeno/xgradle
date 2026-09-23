@@ -80,6 +80,21 @@ public final class XmvnArtifact {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * The module as {@code groupId:artifactId}.
+     */
+    public String module() {
+        return groupId + ":" + artifactId;
+    }
+
+    /**
+     * Dependencies a consumer of this artifact needs: all but the optional ones,
+     * which Maven does not follow transitively.
+     */
+    public Stream<XmvnDependency> requiredDependencies() {
+        return dependencies.stream().filter(dependency -> !dependency.isOptional());
+    }
+
     public boolean isCompat() {
         return !compatVersions.isEmpty();
     }

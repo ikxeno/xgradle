@@ -75,8 +75,7 @@ final class FindMissingTransitivesStep implements ResolutionStep {
             if (!visited.add(artifact)) {
                 continue;
             }
-            artifact.getDependencies().stream()
-                    .filter(dependency -> !dependency.isOptional())
+            artifact.requiredDependencies()
                     .forEach(dependency -> index.resolve(dependency.toKey()).ifPresentOrElse(
                             queue::add,
                             () -> ctx.markSkipped(describe(artifact, dependency))));
@@ -84,6 +83,6 @@ final class FindMissingTransitivesStep implements ResolutionStep {
     }
 
     private static String describe(XmvnArtifact artifact, XmvnDependency dependency) {
-        return dependency + " (required by " + artifact.getGroupId() + ":" + artifact.getArtifactId() + ")";
+        return dependency + " (required by " + artifact.module() + ")";
     }
 }
