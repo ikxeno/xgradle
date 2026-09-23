@@ -18,8 +18,12 @@ package org.altlinux.xgradle.impl.metadata;
 import org.altlinux.xgradle.impl.model.ArtifactKey;
 import org.altlinux.xgradle.impl.model.XmvnDependency;
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+import java.io.StringWriter;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.IntStream;
 
 /**
  * Renders an {@code ivy.xml} with a single {@code default} configuration.
@@ -29,6 +33,8 @@ import java.util.Optional;
 final class IvyDescriptor {
 
     private static final String CONF = "default";
+    private static final String MAVEN_PREFIX = "m";
+    private static final String MAVEN_NAMESPACE = "http://ant.apache.org/ivy/maven";
 
     private IvyDescriptor() {
     }
@@ -37,68 +43,60 @@ final class IvyDescriptor {
      * A module without a published artifact gets an empty {@code <publications/>},
      * because without it ivy expects a jar named after the module.
      *
-     * @param publishedExtension extension of the module's main artifact, if it has one
+     * @param publishedExtension extension of the module's main artifact, or null if it publishes none
      */
-    static String render(String org, String name, String rev, Optional<String> publishedExtension,
+    static String render(String org, String name, String rev, String publishedExtension,
                          List<Dependency> dependencies) {
-        StringBuilder xml = new StringBuilder()
-                .append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-                .append("<ivy-module version=\"2.0\" xmlns:m=\"http://ant.apache.org/ivy/maven\">\n")
-                .append("  <info organisation=\"").append(escape(org))
-                .append("\" module=\"").append(escape(name))
-                .append("\" revision=\"").append(escape(rev))
-                .append("\" status=\"release\"/>\n")
-                .append("  <configurations>\n    <conf name=\"").append(CONF).append("\"/>\n  </configurations>\n");
+        IndentedXml xml = new IndentedXml();
+        xml.start("ivy-module", "version", "2.0");
+        xml.namespace(MAVEN_PREFIX, MAVEN_NAMESPACE);
+        xml.empty("info", "organisation", org, "module", name, "revision", rev, "status", "release");
 
-        if (publishedExtension.isPresent()) {
-            String ext = escape(publishedExtension.get());
-            xml.append("  <publications>\n    <artifact name=\"").append(escape(name))
-                    .append("\" type=\"").append(ext).append("\" ext=\"").append(ext)
-                    .append("\" conf=\"").append(CONF).append("\"/>\n  </publications>\n");
+        xml.start("configurations");
+        xml.empty("conf", "name", CONF);
+        xml.end();
+
+        if (publishedExtension != null) {
+            xml.start("publications");
+            xml.empty("artifact", "name", name, "type", publishedExtension, "ext", publishedExtension,
+                    "conf", CONF);
+            xml.end();
         } else {
-            xml.append("  <publications/>\n");
+            xml.empty("publications");
         }
 
-        xml.append("  <dependencies>\n");
-        dependencies.forEach(dependency -> xml.append(dependency(dependency)));
-        return xml.append("  </dependencies>\n</ivy-module>\n").toString();
+        xml.start("dependencies");
+        dependencies.forEach(dependency -> dependency(xml, dependency));
+        xml.end();
+
+        xml.end();
+        return xml.finish();
     }
 
-    private static String dependency(Dependency resolved) {
-        StringBuilder xml = new StringBuilder("    <dependency org=\"").append(escape(resolved.org))
-                .append("\" name=\"").append(escape(resolved.name))
-                .append("\" rev=\"").append(escape(resolved.rev))
-                .append("\" conf=\"").append(CONF).append("->").append(CONF).append("\"");
-
+    private static void dependency(IndentedXml xml, Dependency resolved) {
+        String[] attributes = {
+                "org", resolved.org, "name", resolved.name, "rev", resolved.rev, "conf", CONF + "->" + CONF
+        };
         XmvnDependency dep = resolved.metadata;
         boolean customArtifact = dep != null && !ArtifactKey.POM_EXTENSION.equals(dep.getExtension())
                 && (!ArtifactKey.DEFAULT_EXTENSION.equals(dep.getExtension()) || !dep.getClassifier().isEmpty());
         boolean hasExclusions = dep != null && !dep.getExclusions().isEmpty();
         if (!customArtifact && !hasExclusions) {
-            return xml.append("/>\n").toString();
+            xml.empty("dependency", attributes);
+            return;
         }
 
-        xml.append(">\n");
+        xml.start("dependency", attributes);
         if (customArtifact) {
-            String ext = escape(dep.getExtension());
-            xml.append("      <artifact name=\"").append(escape(resolved.name))
-                    .append("\" type=\"").append(ext).append("\" ext=\"").append(ext).append("\"");
+            xml.empty("artifact", "name", resolved.name, "type", dep.getExtension(), "ext", dep.getExtension());
             if (!dep.getClassifier().isEmpty()) {
-                xml.append(" m:classifier=\"").append(escape(dep.getClassifier())).append("\"");
+                xml.attribute(MAVEN_PREFIX, MAVEN_NAMESPACE, "classifier", dep.getClassifier());
             }
-            xml.append("/>\n");
         }
-        if (hasExclusions) {
-            dep.getExclusions().stream()
-                    .map(exclusion -> exclusion.split(":", 2))
-                    .forEach(ga -> xml.append("      <exclude org=\"").append(escape(ga[0]))
-                            .append("\" module=\"").append(escape(ga[1])).append("\"/>\n"));
-        }
-        return xml.append("    </dependency>\n").toString();
-    }
-
-    private static String escape(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+        dep.getExclusions().stream()
+                .map(exclusion -> exclusion.split(":", 2))
+                .forEach(ga -> xml.empty("exclude", "org", ga[0], "module", ga[1]));
+        xml.end();
     }
 
     /** A dependency of a module on an installed module revision. */
@@ -119,5 +117,85 @@ final class IvyDescriptor {
             this.rev = rev;
             this.metadata = metadata;
         }
+    }
+
+    /**
+     * Writes one element per line, two spaces deeper for each level, the way ivy
+     * files are usually laid out. Attributes are given as name and value pairs and
+     * keep their order. The writer escapes the values.
+     */
+    private static final class IndentedXml {
+
+        private final StringWriter out = new StringWriter();
+        private final XMLStreamWriter writer;
+        private int depth;
+
+        IndentedXml() {
+            try {
+                writer = XMLOutputFactory.newInstance().createXMLStreamWriter(out);
+            } catch (XMLStreamException e) {
+                throw new IllegalStateException("Cannot create an XML writer", e);
+            }
+            write(() -> writer.writeStartDocument("UTF-8", "1.0"));
+        }
+
+        void start(String element, String... attributes) {
+            newLine();
+            write(() -> writer.writeStartElement(element));
+            attributes(attributes);
+            depth++;
+        }
+
+        void empty(String element, String... attributes) {
+            newLine();
+            write(() -> writer.writeEmptyElement(element));
+            attributes(attributes);
+        }
+
+        /** Declares a namespace on the element just started. */
+        void namespace(String prefix, String uri) {
+            write(() -> writer.writeNamespace(prefix, uri));
+        }
+
+        /** Adds a namespaced attribute to the element just written. */
+        void attribute(String prefix, String uri, String name, String value) {
+            write(() -> writer.writeAttribute(prefix, uri, name, value));
+        }
+
+        void end() {
+            depth--;
+            newLine();
+            write(writer::writeEndElement);
+        }
+
+        String finish() {
+            write(() -> {
+                writer.writeCharacters("\n");
+                writer.writeEndDocument();
+                writer.close();
+            });
+            return out.toString();
+        }
+
+        private void attributes(String... attributes) {
+            IntStream.range(0, attributes.length / 2)
+                    .forEach(i -> write(() -> writer.writeAttribute(attributes[2 * i], attributes[2 * i + 1])));
+        }
+
+        private void newLine() {
+            write(() -> writer.writeCharacters("\n" + "  ".repeat(depth)));
+        }
+
+        private static void write(XmlAction action) {
+            try {
+                action.run();
+            } catch (XMLStreamException e) {
+                throw new IllegalStateException("Cannot write ivy.xml", e);
+            }
+        }
+    }
+
+    private interface XmlAction {
+        void run() throws XMLStreamException;
     }
 }

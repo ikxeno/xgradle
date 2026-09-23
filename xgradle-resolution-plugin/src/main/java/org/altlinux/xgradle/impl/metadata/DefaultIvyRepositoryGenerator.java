@@ -103,7 +103,7 @@ final class DefaultIvyRepositoryGenerator implements IvyRepositoryGenerator {
                 .map(entries -> new IvyModule(
                         entries.org + "/" + entries.name + "/" + entries.rev,
                         IvyDescriptor.render(entries.org, entries.name, entries.rev,
-                                entries.publishedExtension(), dependencies(entries)),
+                                entries.publishedExtension().orElse(null), dependencies(entries)),
                         entries.files))
                 .collect(Collectors.toList());
     }
