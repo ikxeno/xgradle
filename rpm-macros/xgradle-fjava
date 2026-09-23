@@ -38,17 +38,18 @@
 # Gradle launch script.
 %__gradle gradle
 
-# Extra flags for xgradle. Metadata locations come from the XMvn configuration.
-%_xgradleflags %nil
+# Default flags for xgradle builds. Artifacts come from the system, so Gradle runs offline.
+# Metadata locations come from the XMvn configuration.
+%_xgradleflags --offline
 
 # Run Gradle publication task.
-%gradle_publish %__gradle publishToMavenLocal --offline %_xgradleflags
+%gradle_publish %__gradle publishToMavenLocal %_xgradleflags
 
 # Run Gradle build task.
-%gradle_build %__gradle build --offline %_xgradleflags
+%gradle_build %__gradle build %_xgradleflags
 
 # Run Gradle check task.
-%gradle_check %__gradle check --offline %_xgradleflags
+%gradle_check %__gradle check %_xgradleflags
 
 # =========================================================
 #                        Packaging
