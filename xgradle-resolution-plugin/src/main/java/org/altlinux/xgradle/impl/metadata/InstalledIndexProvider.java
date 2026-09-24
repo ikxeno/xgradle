@@ -77,7 +77,7 @@ final class InstalledIndexProvider implements Provider<MetadataIndex> {
                 .collect(Collectors.toSet());
 
         List<XmvnArtifact> fromPoms = firstOfEachKey(
-                pomReader.read(layout.getPomsRoot(), layout.getJavaRoot(), describedFiles).stream()
+                pomReader.read(layout.getPomsRoot(), layout.getJavaRoots(), describedFiles).stream()
                         .filter(artifact -> !describedModules.contains(artifact.module())));
 
         DefaultMetadataIndex index = new DefaultMetadataIndex(

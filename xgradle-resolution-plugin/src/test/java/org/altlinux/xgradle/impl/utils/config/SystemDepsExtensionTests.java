@@ -92,6 +92,19 @@ class SystemDepsExtensionTests {
     }
 
     @Test
+    @DisplayName("Splits comma-separated java.library.dir into jar roots")
+    void parsesMultipleJavaDirs() {
+        String previous = System.getProperty("java.library.dir");
+        System.setProperty("java.library.dir", "/usr/share/java,/usr/lib/java");
+        try {
+            assertEquals(List.of(Path.of("/usr/share/java"), Path.of("/usr/lib/java")),
+                    SystemDepsExtension.getJavaDirs());
+        } finally {
+            restoreProperty("java.library.dir", previous);
+        }
+    }
+
+    @Test
     @DisplayName("Falls back to /usr/share/maven-metadata only if it exists")
     void fallsBackToDefault() {
         List<Path> expected = Files.isDirectory(DEFAULT_DIR) ? List.of(DEFAULT_DIR) : List.of();

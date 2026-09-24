@@ -31,9 +31,9 @@ public interface PomArtifactReader {
 
     /**
      * Reads every POM under {@code pomsRoot} except those in {@code skip}, each once
-     * even if symlinked, and pairs it with its jar under {@code javaRoot} if one is
-     * installed: {@code X/Y.jar} for {@code X/Y.pom}, the jar of a JPP-named POM, or
+     * even if symlinked, and pairs it with its jar under the first of {@code javaRoots}
+     * that has one: {@code X/Y.jar} for {@code X/Y.pom}, the jar of a JPP-named POM, or
      * a jar named after the artifactId. An unreadable POM is skipped with a warning.
      */
-    List<XmvnArtifact> read(Path pomsRoot, Path javaRoot, Set<Path> skip);
+    List<XmvnArtifact> read(Path pomsRoot, List<Path> javaRoots, Set<Path> skip);
 }

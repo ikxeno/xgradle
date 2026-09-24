@@ -28,20 +28,20 @@ public final class InstalledLayout {
     private final List<Path> metadataLocations;
     private final boolean ignoreDuplicateMetadata;
     private final Path pomsRoot;
-    private final Path javaRoot;
+    private final List<Path> javaRoots;
 
     /**
      * @param metadataLocations       XMvn metadata files or directories
      * @param ignoreDuplicateMetadata XMvn's {@code ignoreDuplicateMetadata}
      * @param pomsRoot                root of installed POMs, e.g. {@code /usr/share/maven-poms}
-     * @param javaRoot                root of installed jars, e.g. {@code /usr/share/java}
+     * @param javaRoots               roots of installed jars in search order, e.g. {@code /usr/share/java}
      */
     public InstalledLayout(List<Path> metadataLocations, boolean ignoreDuplicateMetadata,
-                           Path pomsRoot, Path javaRoot) {
+                           Path pomsRoot, List<Path> javaRoots) {
         this.metadataLocations = List.copyOf(metadataLocations);
         this.ignoreDuplicateMetadata = ignoreDuplicateMetadata;
         this.pomsRoot = pomsRoot;
-        this.javaRoot = javaRoot;
+        this.javaRoots = List.copyOf(javaRoots);
     }
 
     public List<Path> getMetadataLocations() {
@@ -56,7 +56,7 @@ public final class InstalledLayout {
         return pomsRoot;
     }
 
-    public Path getJavaRoot() {
-        return javaRoot;
+    public List<Path> getJavaRoots() {
+        return javaRoots;
     }
 }

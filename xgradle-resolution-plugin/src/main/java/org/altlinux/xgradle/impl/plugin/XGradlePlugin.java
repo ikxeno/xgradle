@@ -59,7 +59,7 @@ public final class XGradlePlugin implements Plugin<Gradle> {
                 SystemDepsExtension.getMetadataPaths(xmvn),
                 xmvn.isIgnoreDuplicateMetadata(),
                 SystemDepsExtension.getPomsDir(),
-                SystemDepsExtension.getJavaDir());
+                SystemDepsExtension.getJavaDirs());
         Injector injector = Guice.createInjector(new XGradlePluginModule(layout));
 
         PluginsDependenciesHandler plugins = instance(injector, PluginsDependenciesHandler.class);
