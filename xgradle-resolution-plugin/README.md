@@ -73,7 +73,7 @@ xgradle-resolution-plugin is configured via **system properties** or the user co
 |---|---|
 | `maven.metadata.dir` | One or more directories or files with **XMvn metadata** (comma-separated). Overrides the metadata repositories of the XMvn configuration (on ALT `/usr/share/maven-metadata` and `/usr/share/javapackages-bootstrap/maven-metadata`). |
 | `maven.poms.dir` | Root of POMs installed **without** XMvn metadata, such as packages installed by xgradle-cli (default `/usr/share/maven-poms`). |
-| `java.library.dir` | Root of the jars matching those POMs: `maven.poms.dir/X/Y.pom` pairs with `java.library.dir/X/Y.jar` (default `/usr/share/java`). |
+| `java.library.dir` | One or more roots (comma-separated, searched in order) of the jars matching those POMs: `maven.poms.dir/X/Y.pom` pairs with `java.library.dir/X/Y.jar` (default `/usr/share/java`). |
 | `disable.xgradle=true` | Completely disables xgradle plugin logic for the current build. |
 | `disable.logo=true` | Disable ASCII banner printing. |
 | `enable.ansi.color=true` | Enable ANSI colors in xgradle logs. |

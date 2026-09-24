@@ -126,6 +126,16 @@ class InstalledIndexTests {
     }
 
     @Test
+    @DisplayName("finds the jar under a later java root, as -Djava.library.dir=a,b gives them")
+    void findsJarUnderLaterJavaRoot() {
+        Injector injector = install(List.of(), true, poms, List.of(temp.resolve("lib-java"), temp.resolve("java")));
+        IvyRepository repository = injector.getInstance(IvyRepositoryGenerator.class).generate(temp.resolve("cache"));
+
+        assertEquals(Set.of("biz.aQute.bnd.gradle.jar"),
+                resolve(repository, "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin:7.1.0"));
+    }
+
+    @Test
     @DisplayName("keeps versionless, typed and classified POM dependencies with their exclusions")
     void readsPomDependenciesAsXmvnRecordsThem() {
         Path pomDir = Fixtures.copy("installed-index/pom-dependencies", temp.resolve("dep-poms"));
@@ -179,8 +189,13 @@ class InstalledIndexTests {
     }
 
     private static Injector install(List<Path> metadata, boolean ignoreDuplicates, Path pomsRoot, Path javaRoot) {
+        return install(metadata, ignoreDuplicates, pomsRoot, List.of(javaRoot));
+    }
+
+    private static Injector install(List<Path> metadata, boolean ignoreDuplicates, Path pomsRoot,
+                                    List<Path> javaRoots) {
         return Guice.createInjector(
-                new MetadataModule(new InstalledLayout(metadata, ignoreDuplicates, pomsRoot, javaRoot)),
+                new MetadataModule(new InstalledLayout(metadata, ignoreDuplicates, pomsRoot, javaRoots)),
                 new ParsersModule(), new MavenModule(),
                 new AbstractModule() {
                     @Override

@@ -43,7 +43,7 @@ public final class Installations {
     }
 
     public static InstalledLayout metadataOnly(List<Path> metadataLocations, boolean ignoreDuplicates) {
-        return new InstalledLayout(metadataLocations, ignoreDuplicates, NOTHING_INSTALLED, NOTHING_INSTALLED);
+        return new InstalledLayout(metadataLocations, ignoreDuplicates, NOTHING_INSTALLED, List.of(NOTHING_INSTALLED));
     }
 
     public static Injector injector(List<Path> metadataLocations) {

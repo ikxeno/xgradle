@@ -75,14 +75,14 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
     }
 
     @Override
-    public List<XmvnArtifact> read(Path pomsRoot, Path javaRoot, Set<Path> skip) {
+    public List<XmvnArtifact> read(Path pomsRoot, List<Path> javaRoots, Set<Path> skip) {
         if (!Files.isDirectory(pomsRoot)) {
             return List.of();
         }
         Set<Path> described = skip.stream().map(RealPaths::of).collect(Collectors.toSet());
         List<XmvnArtifact> artifacts = pomFiles(pomsRoot).entrySet().stream()
                 .filter(pom -> !described.contains(pom.getKey()))
-                .flatMap(pom -> artifacts(pom.getValue(), pomsRoot.relativize(pom.getValue()), javaRoot))
+                .flatMap(pom -> artifacts(pom.getValue(), pomsRoot.relativize(pom.getValue()), javaRoots))
                 .collect(Collectors.toList());
         logger.info("Read {} artifacts from POMs without XMvn metadata in {}", artifacts.size(), pomsRoot);
         return artifacts;
@@ -137,16 +137,16 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
      * The POM of a module and its jar, if one is installed. The packaging is ignored
      * because ALT POMs of jar modules often declare {@code <packaging>pom</packaging>}.
      */
-    private Stream<XmvnArtifact> artifacts(Path pom, Path relativePom, Path javaRoot) {
+    private Stream<XmvnArtifact> artifacts(Path pom, Path relativePom, List<Path> javaRoots) {
         try {
-            return readArtifacts(pom, relativePom, javaRoot);
+            return readArtifacts(pom, relativePom, javaRoots);
         } catch (GradleException e) {
             logger.warn("Skipping unreadable POM {}: {}", pom, e.getMessage());
             return Stream.empty();
         }
     }
 
-    private Stream<XmvnArtifact> readArtifacts(Path pom, Path relativePom, Path javaRoot) {
+    private Stream<XmvnArtifact> readArtifacts(Path pom, Path relativePom, List<Path> javaRoots) {
         MavenCoordinate coordinate = pomParser.parsePom(pom);
         if (coordinate == null || !coordinate.isValid()) {
             logger.warn("Skipping POM without complete coordinates: {}", pom);
@@ -157,8 +157,9 @@ final class DefaultPomArtifactReader implements PomArtifactReader {
                 .map(DefaultPomArtifactReader::toDependency)
                 .collect(Collectors.toList());
 
-        Stream<XmvnArtifact> jarArtifact = jarCandidates(relativePom, coordinate.getArtifactId())
-                .map(javaRoot::resolve)
+        List<Path> candidates = jarCandidates(relativePom, coordinate.getArtifactId()).collect(Collectors.toList());
+        Stream<XmvnArtifact> jarArtifact = javaRoots.stream()
+                .flatMap(root -> candidates.stream().map(root::resolve))
                 .filter(Files::isRegularFile)
                 .findFirst()
                 .map(jar -> artifact(coordinate, ArtifactKey.DEFAULT_EXTENSION, jar, dependencies, pom))

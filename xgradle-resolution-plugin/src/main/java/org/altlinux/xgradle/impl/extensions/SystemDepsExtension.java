@@ -56,11 +56,11 @@ public class SystemDepsExtension {
     }
 
     /**
-     * Root of the jars matching those POMs: {@code java.library.dir}, default
-     * {@code /usr/share/java}.
+     * Roots of the jars matching those POMs, searched in order: {@code java.library.dir}
+     * (comma-separated, as xgradle 0.x accepted it), default {@code /usr/share/java}.
      */
-    public static Path getJavaDir() {
-        return property(JAVA_LIBRARY_DIR_KEY).map(Path::of).orElse(DEFAULT_JAVA_DIR);
+    public static List<Path> getJavaDirs() {
+        return property(JAVA_LIBRARY_DIR_KEY).map(SystemDepsExtension::paths).orElse(List.of(DEFAULT_JAVA_DIR));
     }
 
     /**
@@ -89,12 +89,7 @@ public class SystemDepsExtension {
     public static List<Path> getMetadataPaths(XmvnConfiguration xmvn) {
         Optional<String> configured = property(MAVEN_METADATA_DIR_KEY);
         if (configured.isPresent()) {
-            return Arrays.stream(configured.get().split(PATH_SEPARATOR))
-                    .map(String::trim)
-                    .filter(part -> !part.isEmpty())
-                    .distinct()
-                    .map(Path::of)
-                    .collect(Collectors.toList());
+            return paths(configured.get());
         }
         List<Path> fromXmvn = xmvn.getMetadataRepositories().stream()
                 .filter(Files::exists)
@@ -110,5 +105,15 @@ public class SystemDepsExtension {
                     DEFAULT_METADATA_DIR, MAVEN_METADATA_DIR_KEY);
         }
         return List.of();
+    }
+
+    /** Comma-separated paths, trimmed, without empty parts and repeats. */
+    private static List<Path> paths(String value) {
+        return Arrays.stream(value.split(PATH_SEPARATOR))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .distinct()
+                .map(Path::of)
+                .collect(Collectors.toList());
     }
 }
